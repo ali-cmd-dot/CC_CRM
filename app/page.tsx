@@ -26,11 +26,11 @@ import {
   type Roster
 } from '@/lib/supabase'
 
-export default function FleetTrackCRM() {
+export default function CautioCRM() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [loginForm, setLoginForm] = useState({ user_id: '', password: '' })
   const [activeSection, setActiveSection] = useState('dashboard')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   
   // Data states
   const [clients, setClients] = useState<Client[]>([])
@@ -52,13 +52,13 @@ export default function FleetTrackCRM() {
 
   // Session Management
   useEffect(() => {
-    const savedUser = localStorage.getItem('fleettrack_user')
+    const savedUser = localStorage.getItem('cautio_user')
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
         setCurrentUser(user)
       } catch (error) {
-        localStorage.removeItem('fleettrack_user')
+        localStorage.removeItem('cautio_user')
       }
     }
   }, [])
@@ -95,13 +95,13 @@ export default function FleetTrackCRM() {
       return
     }
     
-    localStorage.setItem('fleettrack_user', JSON.stringify(user))
+    localStorage.setItem('cautio_user', JSON.stringify(user))
     setCurrentUser(user)
     setLoading(false)
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('fleettrack_user')
+    localStorage.removeItem('cautio_user')
     setCurrentUser(null)
     setActiveSection('dashboard')
     setLoginForm({ user_id: '', password: '' })
@@ -412,18 +412,14 @@ export default function FleetTrackCRM() {
         <div className="login-box">
           <div className="logo-container">
             <div className="logo-shield">
-              <Image 
-                src="/main-logo-1.png" 
-                alt="FleetTrack Logo" 
-                width={60} 
-                height={60}
-                className="object-contain"
-              />
+              <Shield className="w-12 h-12 text-white" />
             </div>
           </div>
           
-          <h1 className="text-3xl font-bold text-center mb-2 text-white">Sign in</h1>
-          <p className="text-center text-gray-400 mb-8">Welcome back to FleetTrack</p>
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-1 text-white">Sign in</h1>
+            <p className="text-gray-400">Welcome to Cautio</p>
+          </div>
           
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
@@ -545,86 +541,85 @@ export default function FleetTrackCRM() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0f0f10] text-white">
-      {/* Glassmorphic Sidebar */}
-      <div className={`sidebar ${sidebarCollapsed ? 'w-20' : 'w-64'} transition-all duration-300`}>
+    <div className="min-h-screen bg-[#0a0a0b] text-white">
+      {/* Perfect Cautio Sidebar */}
+      <div className={`cautio-sidebar ${sidebarCollapsed ? 'collapsed' : 'expanded'}`}>
         {/* Sidebar Toggle Button */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="sidebar-toggle"
+          className="sidebar-toggle-btn"
           title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-          {sidebarCollapsed ? <ChevronRight className="w-4 h-4 text-white" /> : <ChevronLeft className="w-4 h-4 text-white" />}
+          {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
 
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            {!sidebarCollapsed ? (
-              <>
-                <Shield className="w-8 h-8 text-blue-500 animate-glow" />
-                <div>
-                  <span className="text-xl font-bold">FleetTrack</span>
-                  <p className="text-xs text-gray-400">Pro CRM</p>
-                </div>
-              </>
-            ) : (
-              <Shield className="w-8 h-8 text-blue-500 mx-auto animate-glow" />
-            )}
+        {/* Sidebar Header with Logo */}
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <Shield className="logo-icon animate-glow" />
+            <div className="logo-text">
+              <span className="logo-title">cautio</span>
+              <span className="beta-badge">BETA</span>
+            </div>
           </div>
-          
-          <nav className="space-y-2">
-            {(isAdmin ? [
-              { id: 'dashboard', label: 'Dashboard', icon: Home },
-              { id: 'clients', label: 'Clients', icon: Users },
-              { id: 'employees', label: 'Employees', icon: UserCheck },
-              { id: 'tasks', label: 'Tasks', icon: ClipboardCheck },
-              { id: 'attendance', label: 'Attendance', icon: Clock },
-              { id: 'leaves', label: 'Leaves', icon: Calendar, badge: leaveRequests.length },
-              { id: 'roster', label: 'Roster', icon: BarChart3 }
-            ] : [
-              { id: 'dashboard', label: 'Dashboard', icon: Home },
-              { id: 'my-tasks', label: 'My Tasks', icon: ClipboardCheck },
-              { id: 'my-clients', label: 'My Clients', icon: Users },
-              { id: 'my-roster', label: 'My Roster', icon: Calendar },
-              { id: 'request-leave', label: 'Leave Request', icon: FileText }
-            ]).map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveSection(item.id)}
-                  className={`sidebar-item w-full ${activeSection === item.id ? 'active' : ''}`}
-                  title={sidebarCollapsed ? item.label : ''}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!sidebarCollapsed && <span>{item.label}</span>}
-                  {item.badge && item.badge > 0 && !sidebarCollapsed && (
-                    <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </nav>
         </div>
         
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+        {/* Sidebar Navigation */}
+        <nav className="sidebar-nav">
+          {(isAdmin ? [
+            { id: 'dashboard', label: 'Dashboard', icon: Home },
+            { id: 'clients', label: 'Fleet', icon: Truck },
+            { id: 'employees', label: 'Drivers', icon: Users },
+            { id: 'tasks', label: 'Tasks', icon: ClipboardCheck },
+            { id: 'attendance', label: 'Attendance', icon: Clock },
+            { id: 'leaves', label: 'Leaves', icon: Calendar, badge: leaveRequests.length },
+            { id: 'roster', label: 'Reports', icon: BarChart3 }
+          ] : [
+            { id: 'dashboard', label: 'Dashboard', icon: Home },
+            { id: 'my-tasks', label: 'My Tasks', icon: ClipboardCheck },
+            { id: 'my-clients', label: 'My Fleet', icon: Truck },
+            { id: 'my-roster', label: 'My Roster', icon: Calendar },
+            { id: 'request-leave', label: 'Leave Request', icon: FileText }
+          ]).map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                className={`sidebar-item ${activeSection === item.id ? 'active' : ''}`}
+              >
+                <Icon className="sidebar-item-icon" />
+                <span className="sidebar-item-text">{item.label}</span>
+                {item.badge && item.badge > 0 && (
+                  <span className="sidebar-item-badge">{item.badge}</span>
+                )}
+                {sidebarCollapsed && (
+                  <span className="sidebar-tooltip">{item.label}</span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+        
+        {/* Sidebar Footer */}
+        <div className="sidebar-footer">
           <button
             onClick={handleLogout}
-            className="sidebar-item w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            title={sidebarCollapsed ? "Logout" : ''}
+            className="sidebar-item"
           >
-            <LogOut className="w-5 h-5" />
-            {!sidebarCollapsed && <span>Logout</span>}
+            <LogOut className="sidebar-item-icon" />
+            <span className="sidebar-item-text">Logout</span>
+            {sidebarCollapsed && (
+              <span className="sidebar-tooltip">Logout</span>
+            )}
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className={`${sidebarCollapsed ? 'ml-20' : 'ml-64'} transition-all duration-300`}>
+      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-[72px]' : 'ml-[240px]'}`}>
         {/* Header */}
-        <div className="header sticky top-0 z-40">
+        <div className="header">
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div>
@@ -661,8 +656,8 @@ export default function FleetTrackCRM() {
                 </button>
               )}
               
-              <div className="flex items-center gap-3 px-3 py-2 bg-gray-800 rounded-lg">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="flex items-center gap-3 px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                   {currentUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
@@ -679,7 +674,7 @@ export default function FleetTrackCRM() {
           {isAdmin ? (
             <>
               {activeSection === 'dashboard' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in">
                   {/* Clickable Metrics */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     {metrics.map((metric, idx) => {
@@ -692,12 +687,12 @@ export default function FleetTrackCRM() {
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="text-3xl font-bold">{metric.value}</div>
-                            <Icon className="w-8 h-8 opacity-70" />
+                            <Icon className="w-7 h-7 opacity-80" />
                           </div>
                           <div className="text-xs opacity-90 mb-1">{metric.subtext}</div>
-                          <div className="text-sm opacity-80 flex items-center justify-between">
+                          <div className="text-sm opacity-90 flex items-center justify-between">
                             <span>{metric.label}</span>
-                            <ArrowRight className="w-4 h-4 opacity-60" />
+                            <ArrowRight className="w-4 h-4 opacity-70" />
                           </div>
                         </div>
                       )
@@ -731,9 +726,9 @@ export default function FleetTrackCRM() {
                           onClick={() => setActiveSection('attendance')}
                           className={`stat-card-clickable bg-gradient-to-br ${stat.color} text-white rounded-lg p-4 text-center`}
                         >
-                          <div className="text-4xl mb-2">{stat.icon}</div>
-                          <div className="text-3xl font-bold">{stat.count}</div>
-                          <div className="text-sm opacity-90 mt-1">{stat.label}</div>
+                          <div className="text-3xl mb-2">{stat.icon}</div>
+                          <div className="text-2xl font-bold">{stat.count}</div>
+                          <div className="text-xs opacity-90 mt-1">{stat.label}</div>
                         </div>
                       ))}
                     </div>
@@ -741,8 +736,8 @@ export default function FleetTrackCRM() {
                     {/* Late Employees Alert - Clickable */}
                     {attendance.filter(a => a.status === 'late').length > 0 && (
                       <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 mb-4">
-                        <h4 className="font-bold text-orange-400 mb-3 flex items-center gap-2">
-                          <AlertTriangle className="w-5 h-5" />
+                        <h4 className="font-bold text-orange-400 mb-3 flex items-center gap-2 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
                           Late Arrivals ({attendance.filter(a => a.status === 'late').length})
                         </h4>
                         <div className="space-y-2">
@@ -752,15 +747,15 @@ export default function FleetTrackCRM() {
                               <div 
                                 key={att.id} 
                                 onClick={() => setActiveSection('attendance')}
-                                className="flex items-center justify-between bg-gray-800/50 rounded p-3 cursor-pointer hover:bg-gray-800 transition-colors"
+                                className="flex items-center justify-between bg-gray-800/50 rounded p-3 cursor-pointer hover:bg-gray-800 transition-colors text-sm"
                               >
                                 <div>
                                   <div className="font-semibold">{emp?.full_name || 'Employee'}</div>
-                                  <div className="text-sm text-gray-400">Scheduled: {att.scheduled_time}</div>
+                                  <div className="text-xs text-gray-400">Scheduled: {att.scheduled_time}</div>
                                 </div>
                                 <div className="text-right">
-                                  <div className="font-bold text-red-400 text-lg">{att.late_by_minutes} min late</div>
-                                  <div className="text-sm text-gray-400">{new Date(att.sign_in_time!).toLocaleTimeString()}</div>
+                                  <div className="font-bold text-red-400">{att.late_by_minutes} min late</div>
+                                  <div className="text-xs text-gray-400">{new Date(att.sign_in_time!).toLocaleTimeString()}</div>
                                 </div>
                               </div>
                             )
@@ -775,22 +770,22 @@ export default function FleetTrackCRM() {
                         onClick={() => openModal('addClient')}
                         className="dark-card-clickable p-4 text-center"
                       >
-                        <Plus className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                        <div className="font-semibold">Add Client</div>
+                        <Plus className="w-7 h-7 mx-auto mb-2 text-blue-500" />
+                        <div className="font-semibold text-sm">Add Client</div>
                       </button>
                       <button 
                         onClick={() => openModal('addEmployee')}
                         className="dark-card-clickable p-4 text-center"
                       >
-                        <Plus className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                        <div className="font-semibold">Add Employee</div>
+                        <Plus className="w-7 h-7 mx-auto mb-2 text-purple-500" />
+                        <div className="font-semibold text-sm">Add Employee</div>
                       </button>
                       <button 
                         onClick={() => openModal('addTask')}
                         className="dark-card-clickable p-4 text-center"
                       >
-                        <Plus className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                        <div className="font-semibold">Create Task</div>
+                        <Plus className="w-7 h-7 mx-auto mb-2 text-green-500" />
+                        <div className="font-semibold text-sm">Create Task</div>
                       </button>
                     </div>
                   </div>
@@ -801,12 +796,12 @@ export default function FleetTrackCRM() {
                       <Activity className="w-6 h-6 text-blue-500" />
                       Recent Activity
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {tasks.slice(0, 5).map((task) => (
                         <div 
                           key={task.id}
                           onClick={() => setActiveSection('tasks')}
-                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer interactive-hover"
+                          className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer interactive-hover"
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-2 h-2 rounded-full ${
@@ -815,8 +810,8 @@ export default function FleetTrackCRM() {
                               'bg-blue-500'
                             } animate-pulse`}></div>
                             <div>
-                              <div className="font-semibold">{task.title}</div>
-                              <div className="text-sm text-gray-400">{task.description?.slice(0, 50)}...</div>
+                              <div className="font-semibold text-sm">{task.title}</div>
+                              <div className="text-xs text-gray-400">{task.description?.slice(0, 50)}...</div>
                             </div>
                           </div>
                           <span className={`badge ${
@@ -834,9 +829,9 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'clients' && (
-                <div>
+                <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Clients Management</h2>
+                    <h2 className="text-2xl font-bold">Fleet Management</h2>
                     <button onClick={() => openModal('addClient')} className="btn-primary">
                       <Plus className="w-4 h-4 inline mr-2" />
                       Add Client
@@ -850,15 +845,15 @@ export default function FleetTrackCRM() {
                             <h3 className="text-xl font-bold mb-2">{client.name}</h3>
                             <div className="grid grid-cols-3 gap-4 text-sm">
                               <div>
-                                <p className="text-gray-400">Email</p>
+                                <p className="text-gray-400 text-xs">Email</p>
                                 <p className="font-medium">{client.email}</p>
                               </div>
                               <div>
-                                <p className="text-gray-400">Phone</p>
+                                <p className="text-gray-400 text-xs">Phone</p>
                                 <p className="font-medium">{client.phone}</p>
                               </div>
                               <div>
-                                <p className="text-gray-400">Vehicles</p>
+                                <p className="text-gray-400 text-xs">Vehicles</p>
                                 <p className="font-medium">{client.total_vehicles}</p>
                               </div>
                             </div>
@@ -905,15 +900,15 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'vehicles' && selectedClient && (
-                <div>
+                <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
                     <div>
                       <button
                         onClick={() => setActiveSection('clients')}
-                        className="text-blue-500 hover:text-blue-400 mb-2 flex items-center gap-2 transition-colors"
+                        className="text-blue-500 hover:text-blue-400 mb-2 flex items-center gap-2 transition-colors text-sm"
                       >
                         <ChevronLeft className="w-4 h-4" />
-                        Back to Clients
+                        Back to Fleet
                       </button>
                       <h2 className="text-2xl font-bold">{selectedClient.name} - Vehicles</h2>
                     </div>
@@ -940,18 +935,18 @@ export default function FleetTrackCRM() {
                       <tbody>
                         {vehicles.map((vehicle) => (
                           <tr key={vehicle.id} className="table-row">
-                            <td className="px-6 py-4 font-medium">{vehicle.vehicle_number}</td>
+                            <td className="px-6 py-4 font-medium text-sm">{vehicle.vehicle_number}</td>
                             <td className="px-6 py-4">
                               <div>
-                                <div className="font-medium">{vehicle.driver_name}</div>
-                                <div className="text-sm text-gray-400">{vehicle.driver_phone}</div>
+                                <div className="font-medium text-sm">{vehicle.driver_name}</div>
+                                <div className="text-xs text-gray-400">{vehicle.driver_phone}</div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <select
                                 value={vehicle.status}
                                 onChange={(e) => updateVehicleStatus(vehicle.id, 'status', e.target.value)}
-                                className={`px-3 py-1 rounded-lg text-sm font-medium cursor-pointer border-2 bg-transparent ${
+                                className={`px-3 py-1 rounded-lg text-xs font-medium cursor-pointer border bg-transparent ${
                                   vehicle.status === 'online' ? 'border-green-500 text-green-400' :
                                   vehicle.status === 'offline' ? 'border-red-500 text-red-400' :
                                   'border-yellow-500 text-yellow-400'
@@ -984,7 +979,7 @@ export default function FleetTrackCRM() {
                                 <select
                                   value={vehicle.offline_reason || ''}
                                   onChange={(e) => updateVehicleStatus(vehicle.id, 'offline_reason', e.target.value)}
-                                  className="px-3 py-1 border-2 border-gray-600 bg-gray-800 rounded-lg text-sm"
+                                  className="px-3 py-1 border border-gray-600 bg-gray-800 rounded-lg text-xs"
                                 >
                                   <option value="">Select reason</option>
                                   <option value="vehicle_not_running">🚫 Vehicle Not Running</option>
@@ -1001,9 +996,9 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'employees' && (
-                <div>
+                <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Employees Management</h2>
+                    <h2 className="text-2xl font-bold">Team Management</h2>
                     <button
                       onClick={() => openModal('addEmployee')}
                       className="btn-primary"
@@ -1018,18 +1013,18 @@ export default function FleetTrackCRM() {
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h3 className="text-xl font-bold">{emp.full_name}</h3>
-                            <p className="text-gray-400">{emp.email}</p>
+                            <p className="text-gray-400 text-sm">{emp.email}</p>
                             <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
                               <div>
-                                <p className="text-gray-400">User ID</p>
+                                <p className="text-gray-400 text-xs">User ID</p>
                                 <p className="font-medium">{emp.user_id}</p>
                               </div>
                               <div>
-                                <p className="text-gray-400">Shift Time</p>
+                                <p className="text-gray-400 text-xs">Shift Time</p>
                                 <p className="font-medium">{emp.shift_start} - {emp.shift_end}</p>
                               </div>
                               <div>
-                                <p className="text-gray-400">Phone</p>
+                                <p className="text-gray-400 text-xs">Phone</p>
                                 <p className="font-medium">{emp.phone}</p>
                               </div>
                             </div>
@@ -1053,7 +1048,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'tasks' && (
-                <div>
+                <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold">Tasks Management</h2>
                     <button
@@ -1079,12 +1074,12 @@ export default function FleetTrackCRM() {
                               }`}>
                                 {task.priority}
                               </span>
-                              <span className="text-gray-400">Due: {task.due_date}</span>
+                              <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
                             </div>
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-blue-500">{task.completion_percentage}%</div>
-                            <div className="text-sm text-gray-400">Complete</div>
+                            <div className="text-xs text-gray-400">Complete</div>
                           </div>
                         </div>
                       </div>
@@ -1094,7 +1089,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'attendance' && (
-                <div>
+                <div className="animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">Attendance Overview</h2>
                   <div className="table-container">
                     <table className="w-full">
@@ -1112,9 +1107,9 @@ export default function FleetTrackCRM() {
                           const emp = employees.find(e => e.id === att.employee_id)
                           return (
                             <tr key={att.id} className="table-row">
-                              <td className="px-6 py-4 font-medium">{emp?.full_name || 'Employee'}</td>
-                              <td className="px-6 py-4">{att.sign_in_time ? new Date(att.sign_in_time).toLocaleTimeString() : '-'}</td>
-                              <td className="px-6 py-4">{att.sign_out_time ? new Date(att.sign_out_time).toLocaleTimeString() : 'Working...'}</td>
+                              <td className="px-6 py-4 font-medium text-sm">{emp?.full_name || 'Employee'}</td>
+                              <td className="px-6 py-4 text-sm">{att.sign_in_time ? new Date(att.sign_in_time).toLocaleTimeString() : '-'}</td>
+                              <td className="px-6 py-4 text-sm">{att.sign_out_time ? new Date(att.sign_out_time).toLocaleTimeString() : 'Working...'}</td>
                               <td className="px-6 py-4">
                                 <span className={`badge ${
                                   att.status === 'present' ? 'badge-success' :
@@ -1126,7 +1121,7 @@ export default function FleetTrackCRM() {
                               </td>
                               <td className="px-6 py-4">
                                 {att.late_by_minutes > 0 && (
-                                  <span className="text-red-400 font-semibold">{att.late_by_minutes} min</span>
+                                  <span className="text-red-400 font-semibold text-sm">{att.late_by_minutes} min</span>
                                 )}
                               </td>
                             </tr>
@@ -1139,7 +1134,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'leaves' && (
-                <div>
+                <div className="animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">Leave Requests ({leaveRequests.length} Pending)</h2>
                   <div className="grid gap-4">
                     {leaveRequests.map((leave) => {
@@ -1149,11 +1144,11 @@ export default function FleetTrackCRM() {
                           <div className="flex justify-between items-start">
                             <div>
                               <h3 className="text-lg font-bold">{emp?.full_name || 'Employee'}</h3>
-                              <p className="text-gray-400">{leave.leave_type} Leave</p>
-                              <p className="text-sm text-gray-500 mt-2">
+                              <p className="text-gray-400 text-sm">{leave.leave_type} Leave</p>
+                              <p className="text-xs text-gray-500 mt-2">
                                 {leave.from_date} to {leave.to_date} ({leave.total_days} days)
                               </p>
-                              <p className="mt-2 text-gray-300">{leave.reason}</p>
+                              <p className="mt-2 text-gray-300 text-sm">{leave.reason}</p>
                             </div>
                             <div className="flex gap-2">
                               <button
@@ -1180,7 +1175,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'roster' && (
-                <div>
+                <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold">Employee Roster Management</h2>
                     <div className="flex items-center gap-4">
@@ -1227,14 +1222,14 @@ export default function FleetTrackCRM() {
                           setSelectedEmployee(emp)
                           loadEmployeeRoster(emp.id)
                         }}
-                        className={`dark-card p-4 text-left transition-all ${
+                        className={`dark-card p-4 text-left transition-all text-sm ${
                           selectedEmployee?.id === emp.id
                             ? 'ring-2 ring-blue-500'
                             : ''
                         }`}
                       >
                         <div className="font-bold">{emp.full_name}</div>
-                        <div className="text-sm text-gray-400">{emp.shift_start} - {emp.shift_end}</div>
+                        <div className="text-xs text-gray-400">{emp.shift_start} - {emp.shift_end}</div>
                       </button>
                     ))}
                   </div>
@@ -1244,7 +1239,7 @@ export default function FleetTrackCRM() {
                       <h3 className="text-lg font-bold mb-4">{selectedEmployee.full_name}'s Roster</h3>
                       <div className="grid grid-cols-7 gap-2">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                          <div key={day} className="text-center font-bold text-sm text-gray-400 py-2">
+                          <div key={day} className="text-center font-bold text-xs text-gray-400 py-2">
                             {day}
                           </div>
                         ))}
@@ -1256,12 +1251,12 @@ export default function FleetTrackCRM() {
                               onClick={() => toggleWorkingDay(day.id, day.is_working_day)}
                               className={`p-3 rounded-lg text-center transition-all hover:scale-105 cursor-pointer ${
                                 day.is_working_day
-                                  ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border-2 border-green-400'
-                                  : 'bg-gradient-to-br from-red-500 to-red-600 text-white border-2 border-red-400'
+                                  ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border border-green-400'
+                                  : 'bg-gradient-to-br from-red-500 to-red-600 text-white border border-red-400'
                               }`}
                             >
-                              <div className="font-bold text-lg">{date.getDate()}</div>
-                              <div className="text-xs mt-1">{day.is_working_day ? '✓ Working' : '✗ OFF'}</div>
+                              <div className="font-bold text-base">{date.getDate()}</div>
+                              <div className="text-xs mt-1">{day.is_working_day ? '✓' : '✗'}</div>
                               {day.is_working_day && (
                                 <div className="text-xs mt-1 opacity-80">
                                   {day.shift_start?.slice(0, 5)}-{day.shift_end?.slice(0, 5)}
@@ -1279,16 +1274,16 @@ export default function FleetTrackCRM() {
           ) : (
             <>
               {activeSection === 'dashboard' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in">
                   <div className="dark-card p-6">
                     <h3 className="text-lg font-bold mb-4">Today's Shift</h3>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-gray-400">Shift Timing</p>
+                        <p className="text-gray-400 text-sm">Shift Timing</p>
                         <p className="text-3xl font-bold">{currentUser.shift_start} - {currentUser.shift_end}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-gray-400">Status</p>
+                        <p className="text-gray-400 text-sm">Status</p>
                         <p className="text-2xl font-bold text-green-400 flex items-center gap-2">
                           <span className="status-online"></span>
                           Active
@@ -1320,7 +1315,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'my-tasks' && (
-                <div>
+                <div className="animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">My Tasks</h2>
                   <div className="grid gap-4">
                     {tasks.filter(t => t.assigned_to === currentUser.id).map((task) => (
@@ -1337,12 +1332,12 @@ export default function FleetTrackCRM() {
                               }`}>
                                 {task.priority}
                               </span>
-                              <span className="text-gray-400">Due: {task.due_date}</span>
+                              <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
                             </div>
                           </div>
                           <div className="text-right">
                             <div className="text-3xl font-bold text-blue-500">{task.completion_percentage}%</div>
-                            <div className="text-sm text-gray-400">Complete</div>
+                            <div className="text-xs text-gray-400">Complete</div>
                           </div>
                         </div>
                       </div>
@@ -1352,7 +1347,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'my-clients' && (
-                <div>
+                <div className="animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">My Assigned Clients</h2>
                   <div className="grid gap-4">
                     {clients.map((client) => (
@@ -1368,12 +1363,12 @@ export default function FleetTrackCRM() {
                         <div className="flex justify-between items-center">
                           <div>
                             <h3 className="text-xl font-bold">{client.name}</h3>
-                            <p className="text-gray-400">{client.email}</p>
-                            <p className="text-sm text-gray-500 mt-2">{client.total_vehicles} vehicles</p>
+                            <p className="text-gray-400 text-sm">{client.email}</p>
+                            <p className="text-xs text-gray-500 mt-2">{client.total_vehicles} vehicles</p>
                           </div>
                           <div className="text-right">
                             <div className="text-5xl font-bold text-blue-500">{client.completion_percentage}%</div>
-                            <p className="text-sm text-gray-400">Completion</p>
+                            <p className="text-xs text-gray-400">Completion</p>
                           </div>
                         </div>
                       </div>
@@ -1383,8 +1378,8 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'client-vehicles' && selectedClient && (
-                <div>
-                  <button onClick={() => setActiveSection('my-clients')} className="text-blue-500 hover:text-blue-400 mb-4 flex items-center gap-2 transition-colors">
+                <div className="animate-fade-in">
+                  <button onClick={() => setActiveSection('my-clients')} className="text-blue-500 hover:text-blue-400 mb-4 flex items-center gap-2 transition-colors text-sm">
                     <ChevronLeft className="w-4 h-4" />
                     Back to Clients
                   </button>
@@ -1396,26 +1391,26 @@ export default function FleetTrackCRM() {
                           <th className="table-header">Vehicle #</th>
                           <th className="table-header">Driver</th>
                           <th className="table-header">Status</th>
-                          <th className="table-header">Alerts (24h)</th>
+                          <th className="table-header">Alerts</th>
                           <th className="table-header">Video</th>
-                          <th className="table-header">Offline Reason</th>
+                          <th className="table-header">Reason</th>
                         </tr>
                       </thead>
                       <tbody>
                         {vehicles.map((vehicle) => (
                           <tr key={vehicle.id} className="table-row">
-                            <td className="px-6 py-4 font-medium">{vehicle.vehicle_number}</td>
+                            <td className="px-6 py-4 font-medium text-sm">{vehicle.vehicle_number}</td>
                             <td className="px-6 py-4">
                               <div>
-                                <div className="font-medium">{vehicle.driver_name}</div>
-                                <div className="text-sm text-gray-400">{vehicle.driver_phone}</div>
+                                <div className="font-medium text-sm">{vehicle.driver_name}</div>
+                                <div className="text-xs text-gray-400">{vehicle.driver_phone}</div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <select
                                 value={vehicle.status}
                                 onChange={(e) => updateVehicleStatus(vehicle.id, 'status', e.target.value)}
-                                className={`px-3 py-1 rounded-lg text-sm font-medium cursor-pointer border-2 bg-transparent ${
+                                className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border bg-transparent ${
                                   vehicle.status === 'online' ? 'border-green-500 text-green-400' :
                                   vehicle.status === 'offline' ? 'border-red-500 text-red-400' :
                                   'border-yellow-500 text-yellow-400'
@@ -1432,7 +1427,7 @@ export default function FleetTrackCRM() {
                                 type="checkbox"
                                 checked={vehicle.alerts_active}
                                 onChange={(e) => updateVehicleStatus(vehicle.id, 'alerts_active', e.target.checked)}
-                                className="w-5 h-5 cursor-pointer accent-blue-500"
+                                className="w-4 h-4 cursor-pointer accent-blue-500"
                               />
                             </td>
                             <td className="px-6 py-4">
@@ -1440,7 +1435,7 @@ export default function FleetTrackCRM() {
                                 type="checkbox"
                                 checked={vehicle.video_recording}
                                 onChange={(e) => updateVehicleStatus(vehicle.id, 'video_recording', e.target.checked)}
-                                className="w-5 h-5 cursor-pointer accent-blue-500"
+                                className="w-4 h-4 cursor-pointer accent-blue-500"
                               />
                             </td>
                             <td className="px-6 py-4">
@@ -1448,10 +1443,10 @@ export default function FleetTrackCRM() {
                                 <select
                                   value={vehicle.offline_reason || ''}
                                   onChange={(e) => updateVehicleStatus(vehicle.id, 'offline_reason', e.target.value)}
-                                  className="px-3 py-1 border-2 border-gray-600 bg-gray-800 rounded-lg text-sm"
+                                  className="px-2 py-1 border border-gray-600 bg-gray-800 rounded text-xs"
                                 >
-                                  <option value="">Select reason</option>
-                                  <option value="vehicle_not_running">🚫 Vehicle Not Running</option>
+                                  <option value="">Select</option>
+                                  <option value="vehicle_not_running">🚫 Not Running</option>
                                   <option value="dashcam_issue">📹 Dashcam Issue</option>
                                 </select>
                               )}
@@ -1465,7 +1460,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'my-roster' && (
-                <div>
+                <div className="animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">My Roster</h2>
                   <div className="dark-card p-6">
                     <button
@@ -1477,7 +1472,7 @@ export default function FleetTrackCRM() {
                     {roster.length > 0 && (
                       <div className="grid grid-cols-7 gap-2">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                          <div key={day} className="text-center font-bold text-sm text-gray-400 py-2">
+                          <div key={day} className="text-center font-bold text-xs text-gray-400 py-2">
                             {day}
                           </div>
                         ))}
@@ -1486,20 +1481,15 @@ export default function FleetTrackCRM() {
                           return (
                             <div
                               key={idx}
-                              className={`p-3 rounded-lg text-center transition-all ${
+                              className={`p-3 rounded-lg text-center ${
                                 day.is_working_day
-                                  ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border-2 border-green-400'
-                                  : 'bg-gradient-to-br from-red-500 to-red-600 text-white border-2 border-red-400'
+                                  ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border border-green-400'
+                                  : 'bg-gradient-to-br from-red-500 to-red-600 text-white border border-red-400'
                               }`}
                             >
-                              <div className="font-bold text-sm">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                              <div className="text-xl font-bold">{date.getDate()}</div>
-                              <div className="text-xs mt-1 font-semibold">{day.is_working_day ? '✓ Working' : '✗ OFF'}</div>
-                              {day.is_working_day && (
-                                <div className="text-xs mt-1 opacity-80">
-                                  {day.shift_start?.slice(0, 5)}-{day.shift_end?.slice(0, 5)}
-                                </div>
-                              )}
+                              <div className="font-bold text-xs">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                              <div className="text-lg font-bold">{date.getDate()}</div>
+                              <div className="text-xs mt-1">{day.is_working_day ? '✓' : '✗'}</div>
                             </div>
                           )
                         })}
@@ -1510,7 +1500,7 @@ export default function FleetTrackCRM() {
               )}
 
               {activeSection === 'request-leave' && (
-                <div className="max-w-2xl mx-auto">
+                <div className="max-w-2xl mx-auto animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">Request Leave</h2>
                   <div className="dark-card p-6">
                     <div className="space-y-4">
