@@ -95,6 +95,15 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 102, 255, 0.6);
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
@@ -111,6 +120,21 @@ body {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Glassmorphic Sidebar */
+.sidebar-glass {
+  background: rgba(26, 26, 27, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
 /* Dark Theme Card */
 .dark-card {
   background: var(--card);
@@ -124,6 +148,25 @@ body {
   border-color: #3a3a3c;
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 102, 255, 0.15);
+}
+
+.dark-card-clickable {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.dark-card-clickable:hover {
+  background: var(--hover);
+  border-color: var(--primary);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 32px rgba(0, 102, 255, 0.25);
+}
+
+.dark-card-clickable:active {
+  transform: translateY(-2px) scale(1.01);
 }
 
 /* Glass Effect for Dark Theme */
@@ -395,15 +438,20 @@ body {
 
 /* Sidebar */
 .sidebar {
-  background: var(--sidebar);
-  border-right: 1px solid var(--border);
+  background: rgba(26, 26, 27, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   height: 100vh;
   position: fixed;
   left: 0;
   top: 0;
-  width: 240px;
   z-index: 100;
   overflow-y: auto;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-item {
@@ -415,30 +463,54 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(0, 102, 255, 0.2), transparent);
+  transition: width 0.3s ease;
+}
+
+.sidebar-item:hover::before {
+  width: 100%;
 }
 
 .sidebar-item:hover {
-  background: var(--hover);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--foreground);
 }
 
 .sidebar-item.active {
-  background: rgba(0, 102, 255, 0.1);
+  background: rgba(0, 102, 255, 0.15);
   color: var(--primary);
   border-left-color: var(--primary);
+  box-shadow: inset 0 0 20px rgba(0, 102, 255, 0.1);
+}
+
+.sidebar-item.active::before {
+  width: 100%;
 }
 
 /* Header */
 .header {
-  background: var(--sidebar);
-  border-bottom: 1px solid var(--border);
+  background: rgba(26, 26, 27, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(10px);
 }
 
-/* Metric Card */
+/* Metric Card - Clickable */
 .metric-card {
   background: linear-gradient(135deg, var(--primary), #0088ff);
   border-radius: 12px;
@@ -446,11 +518,34 @@ body {
   color: white;
   box-shadow: 0 4px 12px rgba(0, 102, 255, 0.2);
   transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.metric-card:hover::before {
+  opacity: 1;
 }
 
 .metric-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.3);
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 12px 32px rgba(0, 102, 255, 0.4);
+}
+
+.metric-card:active {
+  transform: translateY(-2px) scale(1.01);
 }
 
 /* Status Indicator */
@@ -461,6 +556,7 @@ body {
   border-radius: 50%;
   display: inline-block;
   animation: pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 10px #10b981;
 }
 
 .status-offline {
@@ -469,12 +565,95 @@ body {
   background: #ef4444;
   border-radius: 50%;
   display: inline-block;
+  box-shadow: 0 0 10px #ef4444;
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+  position: absolute;
+  right: -12px;
+  top: 24px;
+  width: 24px;
+  height: 24px;
+  background: var(--primary);
+  border: 2px solid var(--background);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 101;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3);
+}
+
+.sidebar-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.5);
+}
+
+/* Clickable Stats */
+.stat-card-clickable {
+  background: linear-gradient(135deg, var(--card), var(--sidebar));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card-clickable::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card-clickable:hover::before {
+  opacity: 1;
+}
+
+.stat-card-clickable:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.25);
+}
+
+/* Hover Effect for Interactive Elements */
+.interactive-hover {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.interactive-hover::after {
+  content: '→';
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%) translateX(-10px);
+  opacity: 0;
+  color: var(--primary);
+  font-size: 20px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.interactive-hover:hover::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
-    width: 64px;
+    width: 64px !important;
   }
   
   .sidebar-item span {
