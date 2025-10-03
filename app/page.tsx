@@ -6,7 +6,7 @@ import {
   Users, Truck, UserCheck, CheckCircle, AlertTriangle, Activity, Plus, Upload, 
   ClipboardCheck, Calendar, BarChart3, Bell, Search, Download, LogOut, Clock,
   FileText, TrendingUp, X, Check, Edit, Trash2, Eye, Settings, Home, Zap, 
-  ChevronLeft, ChevronRight, Menu, Shield, ArrowRight, ChevronDown
+  ChevronLeft, ChevronRight, Menu, Shield, ArrowRight, ChevronDown, RefreshCw
 } from 'lucide-react'
 import { 
   supabase, 
@@ -25,6 +25,16 @@ import {
   type Attendance,
   type Roster
 } from '@/lib/supabase'
+import {
+  createHourSchedule,
+  getAllSchedules,
+  getDistributionSummary,
+  deleteSchedule,
+  manualRedistribute,
+  redistributeOnAbsence,
+  restoreOnLateSignIn,
+  type DistributionSchedule
+} from '@/lib/distribution'
 
 export default function CautioCRM() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -45,6 +55,11 @@ export default function CautioCRM() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null)
   const [rosterMonth, setRosterMonth] = useState(new Date())
+  
+  // Distribution states
+  const [schedules, setSchedules] = useState<any[]>([])
+  const [distributionSummary, setDistributionSummary] = useState<any[]>([])
+  const [redistributing, setRedistributing] = useState(false)
   
   // Modal states
   const [showModal, setShowModal] = useState<string | null>(null)
@@ -83,6 +98,19 @@ export default function CautioCRM() {
     setTasks(tasksData || [])
     setLeaveRequests(leaveData || [])
     setAttendance(attendanceData || [])
+    
+    // Load distribution data for admin
+    if (currentUser?.role === 'admin') {
+      loadDistributionData()
+    }
+  }
+
+  const loadDistributionData = async () => {
+    const { data: schedulesData } = await getAllSchedules()
+    const summaryData = await getDistributionSummary()
+    
+    setSchedules(schedulesData || [])
+    setDistributionSummary(summaryData || [])
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -124,27 +152,16 @@ export default function CautioCRM() {
       return
     }
     
-    // Update sign-in status in real-time tracking
-    await supabase
-      .from('employee_signin_status')
-      .upsert({
-        employee_id: currentUser.id,
-        date: new Date().toISOString().split('T')[0],
-        is_signed_in: true,
-        sign_in_time: new Date().toISOString(),
-        expected_sign_in: currentUser.shift_start,
-        is_late: lateMinutes > 0,
-        late_by_minutes: lateMinutes
-      })
-    
-    // Trigger task/client redistribution
-    await supabase.rpc('distribute_tasks_by_hour')
+    // If late, restore original assignments
+    if (lateMinutes > 0) {
+      await restoreOnLateSignIn(currentUser.id)
+    }
     
     setIsSignedIn(true)
     setSignInTime(new Date().toLocaleTimeString())
     
     const time = new Date().toLocaleTimeString()
-    alert(`✓ Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateMinutes} minutes` : '\n✓ On Time'}`)
+    alert(`✓ Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateMinutes} minutes\n✓ Your tasks & clients have been restored` : '\n✓ On Time'}`)
     loadInitialData()
     setLoading(false)
   }
@@ -158,16 +175,6 @@ export default function CautioCRM() {
       setLoading(false)
       return
     }
-    
-    // Update sign-in status
-    await supabase
-      .from('employee_signin_status')
-      .update({ 
-        is_signed_in: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('employee_id', currentUser!.id)
-      .eq('date', new Date().toISOString().split('T')[0])
     
     setIsSignedIn(false)
     setSignInTime(null)
@@ -445,6 +452,61 @@ export default function CautioCRM() {
     }
   }
 
+  // Distribution Functions
+  const handleCreateSchedule = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    const scheduleData = {
+      hour_start: parseInt(modalData.hour_start),
+      hour_end: parseInt(modalData.hour_end),
+      task_id: modalData.type === 'task' ? modalData.item_id : undefined,
+      client_id: modalData.type === 'client' ? modalData.item_id : undefined,
+      assigned_to: modalData.assigned_to,
+      created_by: currentUser!.id,
+      is_recurring: true
+    }
+    
+    const { error } = await createHourSchedule(scheduleData)
+    
+    if (error) {
+      alert('Failed to create schedule: ' + error.message)
+    } else {
+      alert('✓ Schedule created successfully!')
+      closeModal()
+      loadDistributionData()
+    }
+    
+    setLoading(false)
+  }
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!confirm('Are you sure you want to delete this schedule?')) return
+    
+    const { error } = await deleteSchedule(scheduleId)
+    
+    if (error) {
+      alert('Failed to delete schedule')
+    } else {
+      alert('✓ Schedule deleted')
+      loadDistributionData()
+    }
+  }
+
+  const handleManualRedistribute = async () => {
+    setRedistributing(true)
+    
+    try {
+      const result = await manualRedistribute()
+      alert('✓ ' + result.message)
+      loadDistributionData()
+    } catch (error) {
+      alert('Failed to redistribute')
+    }
+    
+    setRedistributing(false)
+  }
+
   // Login Page
   if (!currentUser) {
     return (
@@ -584,7 +646,6 @@ export default function CautioCRM() {
     <div className="min-h-screen bg-[#0a0a0b] text-white">
       {/* Perfect Cautio Sidebar */}
       <div className="cautio-sidebar">
-        {/* Sidebar Header with Logo */}
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <Shield className="logo-icon animate-glow" />
@@ -594,13 +655,13 @@ export default function CautioCRM() {
           </div>
         </div>
         
-        {/* Sidebar Navigation */}
         <nav className="sidebar-nav">
           {(isAdmin ? [
             { id: 'dashboard', label: 'Dashboard', icon: Home },
             { id: 'clients', label: 'Fleet', icon: Truck },
             { id: 'employees', label: 'Drivers', icon: Users },
             { id: 'tasks', label: 'Tasks', icon: ClipboardCheck },
+            { id: 'distribution', label: 'Distribution', icon: Zap },
             { id: 'attendance', label: 'Attendance', icon: Clock },
             { id: 'leaves', label: 'Leaves', icon: Calendar, badge: leaveRequests.length },
             { id: 'roster', label: 'Reports', icon: BarChart3 }
@@ -629,7 +690,6 @@ export default function CautioCRM() {
           })}
         </nav>
         
-        {/* Sidebar Footer */}
         <div className="sidebar-footer">
           <button
             onClick={handleLogout}
@@ -718,7 +778,6 @@ export default function CautioCRM() {
             <>
               {activeSection === 'dashboard' && (
                 <div className="space-y-6 animate-fade-in">
-                  {/* Clickable Metrics */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     {metrics.map((metric, idx) => {
                       const Icon = metric.icon
@@ -742,7 +801,6 @@ export default function CautioCRM() {
                     })}
                   </div>
 
-                  {/* Live Attendance Dashboard - Clickable */}
                   <div className="dark-card p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-xl font-bold flex items-center gap-2">
@@ -776,7 +834,6 @@ export default function CautioCRM() {
                       ))}
                     </div>
 
-                    {/* Late Employees Alert - Clickable */}
                     {attendance.filter(a => a.status === 'late').length > 0 && (
                       <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 mb-4">
                         <h4 className="font-bold text-orange-400 mb-3 flex items-center gap-2 text-sm">
@@ -807,7 +864,6 @@ export default function CautioCRM() {
                       </div>
                     )}
 
-                    {/* Quick Actions */}
                     <div className="grid grid-cols-3 gap-4 mt-6">
                       <button 
                         onClick={() => openModal('addClient')}
@@ -833,7 +889,6 @@ export default function CautioCRM() {
                     </div>
                   </div>
 
-                  {/* Recent Activity */}
                   <div className="dark-card p-6">
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                       <Activity className="w-6 h-6 text-blue-500" />
@@ -866,6 +921,143 @@ export default function CautioCRM() {
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeSection === 'distribution' && (
+                <div className="animate-fade-in space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-2xl font-bold">Hour-Based Distribution System</h2>
+                      <p className="text-sm text-gray-400 mt-1">Manage task & client assignments by hour</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={handleManualRedistribute}
+                        disabled={redistributing}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg flex items-center gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${redistributing ? 'animate-spin' : ''}`} />
+                        {redistributing ? 'Redistributing...' : 'Manual Redistribute'}
+                      </button>
+                      <button 
+                        onClick={() => openModal('createSchedule')}
+                        className="btn-primary"
+                      >
+                        <Plus className="w-4 h-4 inline mr-2" />
+                        Create Schedule
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="dark-card p-6">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-blue-500" />
+                      Live Distribution Status (Hour: {new Date().getHours()}:00)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {distributionSummary.map((emp, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-4 rounded-lg border-2 ${
+                            emp.isSignedIn 
+                              ? 'bg-green-500/10 border-green-500/30' 
+                              : 'bg-red-500/10 border-red-500/30'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <div className="font-bold">{emp.employeeName}</div>
+                              <div className="text-xs text-gray-400">{emp.userId}</div>
+                            </div>
+                            <div className={`w-3 h-3 rounded-full ${
+                              emp.isSignedIn ? 'bg-green-500' : 'bg-red-500'
+                            } animate-pulse`}></div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-blue-500/20 rounded p-2 text-center">
+                              <div className="text-2xl font-bold text-blue-400">{emp.tasksCount}</div>
+                              <div className="text-xs text-gray-300">Tasks</div>
+                            </div>
+                            <div className="bg-purple-500/20 rounded p-2 text-center">
+                              <div className="text-2xl font-bold text-purple-400">{emp.clientsCount}</div>
+                              <div className="text-xs text-gray-300">Clients</div>
+                            </div>
+                          </div>
+                          {emp.isLate && (
+                            <div className="mt-2 text-xs text-orange-400 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              Late Sign In
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="dark-card p-6">
+                    <h3 className="text-lg font-bold mb-4">All Schedules</h3>
+                    <div className="table-container">
+                      <table className="w-full">
+                        <thead>
+                          <tr>
+                            <th className="table-header">Time Slot</th>
+                            <th className="table-header">Type</th>
+                            <th className="table-header">Item</th>
+                            <th className="table-header">Assigned To</th>
+                            <th className="table-header">Status</th>
+                            <th className="table-header">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {schedules.map((schedule) => {
+                            const assignedEmp = employees.find(e => e.id === schedule.assigned_to)
+                            const isAssigned = distributionSummary.find(s => s.employeeId === schedule.assigned_to)
+                            
+                            return (
+                              <tr key={schedule.id} className="table-row">
+                                <td className="px-6 py-4 font-medium text-sm">
+                                  {String(schedule.hour_start).padStart(2, '0')}:00 - {String(schedule.hour_end).padStart(2, '0')}:00
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`badge ${schedule.task_id ? 'badge-info' : 'badge-warning'}`}>
+                                    {schedule.task_id ? 'Task' : 'Client'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="font-medium text-sm">
+                                    {schedule.tasks?.title || schedule.clients?.name || 'Unknown'}
+                                  </div>
+                                  {schedule.tasks?.priority && (
+                                    <div className="text-xs text-gray-400">Priority: {schedule.tasks.priority}</div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="font-medium text-sm">{assignedEmp?.full_name}</div>
+                                  <div className="text-xs text-gray-400">{assignedEmp?.user_id}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {isAssigned?.isSignedIn ? (
+                                    <span className="badge badge-success">✓ Signed In</span>
+                                  ) : (
+                                    <span className="badge badge-danger">✗ Not Signed In</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <button
+                                    onClick={() => handleDeleteSchedule(schedule.id)}
+                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -1801,6 +1993,119 @@ export default function CautioCRM() {
                     <button onClick={closeModal} className="btn-secondary">Cancel</button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {showModal === 'createSchedule' && (
+            <div className="modal-overlay" onClick={closeModal}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-xl font-bold mb-4">Create Hour-Based Schedule</h3>
+                <form onSubmit={handleCreateSchedule} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">Start Hour</label>
+                      <select
+                        onChange={(e) => setModalData({ ...modalData, hour_start: e.target.value })}
+                        className="input-field"
+                        required
+                      >
+                        <option value="">Select Start</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">End Hour</label>
+                      <select
+                        onChange={(e) => setModalData({ ...modalData, hour_end: e.target.value })}
+                        className="input-field"
+                        required
+                      >
+                        <option value="">Select End</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Type</label>
+                    <select
+                      onChange={(e) => setModalData({ ...modalData, type: e.target.value })}
+                      className="input-field"
+                      required
+                    >
+                      <option value="">Select Type</option>
+                      <option value="task">Task</option>
+                      <option value="client">Client</option>
+                    </select>
+                  </div>
+
+                  {modalData.type === 'task' && (
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">Select Task</label>
+                      <select
+                        onChange={(e) => setModalData({ ...modalData, item_id: e.target.value })}
+                        className="input-field"
+                        required
+                      >
+                        <option value="">Select Task</option>
+                        {tasks.map(task => (
+                          <option key={task.id} value={task.id}>{task.title} ({task.priority})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {modalData.type === 'client' && (
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">Select Client</label>
+                      <select
+                        onChange={(e) => setModalData({ ...modalData, item_id: e.target.value })}
+                        className="input-field"
+                        required
+                      >
+                        <option value="">Select Client</option>
+                        {clients.map(client => (
+                          <option key={client.id} value={client.id}>{client.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Assign to Employee</label>
+                    <select
+                      onChange={(e) => setModalData({ ...modalData, assigned_to: e.target.value })}
+                      className="input-field"
+                      required
+                    >
+                      <option value="">Select Employee</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.user_id})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-sm">
+                    <p className="text-blue-400 font-medium mb-1">ℹ️ How it works:</p>
+                    <ul className="text-xs text-gray-300 space-y-1 ml-4 list-disc">
+                      <li>This task/client will be assigned during the selected hours</li>
+                      <li>If employee is absent/late, it will auto-redistribute to others</li>
+                      <li>When employee signs in late, assignments restore automatically</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button type="submit" className="btn-primary flex-1" disabled={loading}>
+                      {loading ? 'Creating...' : 'Create Schedule'}
+                    </button>
+                    <button type="button" onClick={closeModal} className="btn-secondary">Cancel</button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
