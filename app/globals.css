@@ -125,7 +125,7 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-/* Perfect Cautio Sidebar with Hover Expansion */
+/* Perfect Cautio Sidebar with Smooth Hover Expansion */
 .cautio-sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -137,27 +137,17 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   width: var(--sidebar-width);
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
 }
 
-/* Hover to expand */
+/* Hover to expand - Smooth */
 .cautio-sidebar:hover {
   width: var(--sidebar-width-expanded);
 }
 
-/* Force collapsed state when has 'collapsed' class */
-.cautio-sidebar.collapsed {
-  width: var(--sidebar-width);
-}
-
-/* Force expanded state when has 'expanded' class */
-.cautio-sidebar.expanded {
-  width: var(--sidebar-width-expanded);
-}
-
-/* Sidebar Header */
+/* Sidebar Header - Perfectly Centered */
 .sidebar-header {
   padding: 20px 0;
   display: flex;
@@ -165,14 +155,22 @@ body {
   justify-content: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   min-height: 72px;
+  position: relative;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
-  transition: all 0.3s ease;
+  width: 100%;
+  padding: 0 20px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cautio-sidebar:not(:hover) .sidebar-logo {
+  justify-content: center;
+  padding: 0;
 }
 
 .logo-icon {
@@ -180,6 +178,7 @@ body {
   height: 32px;
   color: var(--primary);
   flex-shrink: 0;
+  transition: all 0.25s ease;
 }
 
 .logo-text {
@@ -187,17 +186,17 @@ body {
   align-items: center;
   gap: 6px;
   opacity: 0;
+  width: 0;
+  overflow: hidden;
   transform: translateX(-10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  pointer-events: none;
 }
 
-.cautio-sidebar:hover .logo-text,
-.cautio-sidebar.expanded .logo-text {
+.cautio-sidebar:hover .logo-text {
   opacity: 1;
+  width: auto;
   transform: translateX(0);
-  pointer-events: auto;
 }
 
 .logo-title {
@@ -207,7 +206,7 @@ body {
   color: white;
 }
 
-/* Sidebar Navigation */
+/* Sidebar Navigation - Perfectly Aligned */
 .sidebar-nav {
   flex: 1;
   padding: 24px 0;
@@ -220,21 +219,30 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 0;
+  padding: 14px 20px;
   color: #8b8b8d;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   margin: 0 12px;
   border-radius: 8px;
-  justify-content: center;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  width: calc(100% - 24px);
+  text-align: left;
 }
 
-.cautio-sidebar:hover .sidebar-item,
-.cautio-sidebar.expanded .sidebar-item {
+/* Collapsed state - Center icon */
+.cautio-sidebar:not(:hover) .sidebar-item {
+  justify-content: center;
+  padding: 14px 0;
+}
+
+/* Expanded state - Left align */
+.cautio-sidebar:hover .sidebar-item {
   justify-content: flex-start;
-  padding-left: 20px;
-  padding-right: 20px;
+  padding: 14px 20px;
 }
 
 .sidebar-item-icon {
@@ -248,17 +256,17 @@ body {
   font-size: 14px;
   font-weight: 500;
   opacity: 0;
+  width: 0;
+  overflow: hidden;
   transform: translateX(-10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  pointer-events: none;
 }
 
-.cautio-sidebar:hover .sidebar-item-text,
-.cautio-sidebar.expanded .sidebar-item-text {
+.cautio-sidebar:hover .sidebar-item-text {
   opacity: 1;
+  width: auto;
   transform: translateX(0);
-  pointer-events: auto;
 }
 
 .sidebar-item-badge {
@@ -272,13 +280,15 @@ body {
   min-width: 20px;
   text-align: center;
   opacity: 0;
+  width: 0;
+  overflow: hidden;
   transform: scale(0.8);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cautio-sidebar:hover .sidebar-item-badge,
-.cautio-sidebar.expanded .sidebar-item-badge {
+.cautio-sidebar:hover .sidebar-item-badge {
   opacity: 1;
+  width: auto;
   transform: scale(1);
 }
 
@@ -322,34 +332,32 @@ body {
   color: #ef4444;
 }
 
-/* Sidebar Toggle Button - Hidden on hover sidebar */
-.sidebar-toggle-btn {
+/* Tooltip - Only show when collapsed */
+.sidebar-tooltip {
   position: absolute;
-  right: -12px;
-  top: 32px;
-  width: 24px;
-  height: 24px;
-  background: var(--primary);
-  border: 2px solid var(--background);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 101;
-  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.4);
-}
-
-.sidebar-toggle-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.6);
-}
-
-.sidebar-toggle-btn svg {
-  width: 14px;
-  height: 14px;
+  left: calc(100% + 12px);
+  padding: 6px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
   color: white;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cautio-sidebar:not(:hover) .sidebar-item:hover .sidebar-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.cautio-sidebar:hover .sidebar-tooltip {
+  display: none;
 }
 
 /* Glassmorphic Header */
@@ -800,33 +808,4 @@ body {
   .login-box {
     padding: 32px 24px;
   }
-}
-
-/* Tooltip for collapsed sidebar - only show when NOT hovering */
-.sidebar-tooltip {
-  position: absolute;
-  left: 100%;
-  margin-left: 12px;
-  padding: 6px 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  color: white;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.2s ease;
-  z-index: 1000;
-}
-
-.sidebar-item:hover .sidebar-tooltip {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.cautio-sidebar:hover .sidebar-tooltip,
-.cautio-sidebar.expanded .sidebar-tooltip {
-  display: none;
 }
