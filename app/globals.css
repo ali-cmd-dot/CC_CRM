@@ -125,7 +125,7 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-/* Perfect Cautio Sidebar */
+/* Perfect Cautio Sidebar with Hover Expansion */
 .cautio-sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -136,15 +136,23 @@ body {
   z-index: 100;
   overflow-y: auto;
   overflow-x: hidden;
+  width: var(--sidebar-width);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
 }
 
+/* Hover to expand */
+.cautio-sidebar:hover {
+  width: var(--sidebar-width-expanded);
+}
+
+/* Force collapsed state when has 'collapsed' class */
 .cautio-sidebar.collapsed {
   width: var(--sidebar-width);
 }
 
+/* Force expanded state when has 'expanded' class */
 .cautio-sidebar.expanded {
   width: var(--sidebar-width-expanded);
 }
@@ -180,13 +188,16 @@ body {
   gap: 6px;
   opacity: 0;
   transform: translateX(-10px);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  pointer-events: none;
 }
 
+.cautio-sidebar:hover .logo-text,
 .cautio-sidebar.expanded .logo-text {
   opacity: 1;
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 .logo-title {
@@ -194,17 +205,6 @@ body {
   font-weight: 700;
   letter-spacing: -0.5px;
   color: white;
-}
-
-.beta-badge {
-  background: var(--primary);
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 /* Sidebar Navigation */
@@ -223,13 +223,14 @@ body {
   padding: 14px 0;
   color: #8b8b8d;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   margin: 0 12px;
   border-radius: 8px;
   justify-content: center;
 }
 
+.cautio-sidebar:hover .sidebar-item,
 .cautio-sidebar.expanded .sidebar-item {
   justify-content: flex-start;
   padding-left: 20px;
@@ -248,13 +249,16 @@ body {
   font-weight: 500;
   opacity: 0;
   transform: translateX(-10px);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  pointer-events: none;
 }
 
+.cautio-sidebar:hover .sidebar-item-text,
 .cautio-sidebar.expanded .sidebar-item-text {
   opacity: 1;
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 .sidebar-item-badge {
@@ -269,9 +273,10 @@ body {
   text-align: center;
   opacity: 0;
   transform: scale(0.8);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.cautio-sidebar:hover .sidebar-item-badge,
 .cautio-sidebar.expanded .sidebar-item-badge {
   opacity: 1;
   transform: scale(1);
@@ -284,7 +289,7 @@ body {
 }
 
 .sidebar-item.active {
-  background: rgba(0, 102, 255, 0.12);
+  background: rgba(0, 102, 255, 0.15);
   color: var(--primary);
 }
 
@@ -298,10 +303,6 @@ body {
   height: 24px;
   background: var(--primary);
   border-radius: 0 2px 2px 0;
-}
-
-.cautio-sidebar.expanded .sidebar-item.active::before {
-  left: 0;
 }
 
 /* Sidebar Footer */
@@ -321,7 +322,7 @@ body {
   color: #ef4444;
 }
 
-/* Sidebar Toggle Button */
+/* Sidebar Toggle Button - Hidden on hover sidebar */
 .sidebar-toggle-btn {
   position: absolute;
   right: -12px;
@@ -349,6 +350,18 @@ body {
   width: 14px;
   height: 14px;
   color: white;
+}
+
+/* Glassmorphic Header */
+.header-glass {
+  background: rgba(18, 18, 20, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 /* Dark Theme Card */
@@ -652,15 +665,6 @@ body {
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* Header */
-.header {
-  background: var(--sidebar-bg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-
 /* Metric Card - Clickable */
 .metric-card {
   background: linear-gradient(135deg, var(--primary), #0088ff);
@@ -783,6 +787,10 @@ body {
     width: var(--sidebar-width) !important;
   }
   
+  .cautio-sidebar:hover {
+    width: var(--sidebar-width) !important;
+  }
+  
   .sidebar-item-text,
   .logo-text,
   .sidebar-item-badge {
@@ -794,7 +802,7 @@ body {
   }
 }
 
-/* Tooltip for collapsed sidebar */
+/* Tooltip for collapsed sidebar - only show when NOT hovering */
 .sidebar-tooltip {
   position: absolute;
   left: 100%;
@@ -818,6 +826,7 @@ body {
   transform: translateX(0);
 }
 
+.cautio-sidebar:hover .sidebar-tooltip,
 .cautio-sidebar.expanded .sidebar-tooltip {
   display: none;
 }
