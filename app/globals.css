@@ -125,7 +125,10 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-/* Perfect Cautio Sidebar with Smooth Hover Expansion */
+/* ============================================
+   PERFECT CAUTIO SIDEBAR - GUARANTEED ALIGNMENT
+   ============================================ */
+
 .cautio-sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -137,17 +140,19 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   width: var(--sidebar-width);
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
 }
 
-/* Hover to expand - Smooth */
 .cautio-sidebar:hover {
   width: var(--sidebar-width-expanded);
 }
 
-/* Sidebar Header - Perfectly Centered */
+/* ============================================
+   SIDEBAR HEADER - ABSOLUTE CENTER
+   ============================================ */
+
 .sidebar-header {
   padding: 20px 0;
   display: flex;
@@ -156,21 +161,21 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   min-height: 72px;
   position: relative;
+  width: 100%;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
   gap: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
-  padding: 0 20px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  justify-content: center;
 }
 
-.cautio-sidebar:not(:hover) .sidebar-logo {
-  justify-content: center;
-  padding: 0;
+.cautio-sidebar:hover .sidebar-logo {
+  justify-content: flex-start;
+  padding-left: 20px;
 }
 
 .logo-icon {
@@ -178,7 +183,7 @@ body {
   height: 32px;
   color: var(--primary);
   flex-shrink: 0;
-  transition: all 0.25s ease;
+  transition: all 0.3s ease;
 }
 
 .logo-text {
@@ -186,16 +191,16 @@ body {
   align-items: center;
   gap: 6px;
   opacity: 0;
-  width: 0;
+  max-width: 0;
   overflow: hidden;
-  transform: translateX(-10px);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(-20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
 }
 
 .cautio-sidebar:hover .logo-text {
   opacity: 1;
-  width: auto;
+  max-width: 200px;
   transform: translateX(0);
 }
 
@@ -206,20 +211,24 @@ body {
   color: white;
 }
 
-/* Sidebar Navigation - Perfectly Aligned */
+/* ============================================
+   SIDEBAR NAVIGATION - PERFECT CENTER/LEFT ALIGN
+   ============================================ */
+
 .sidebar-nav {
   flex: 1;
   padding: 24px 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 20px;
+  padding: 14px 0;
   color: #8b8b8d;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -231,18 +240,17 @@ body {
   background: transparent;
   width: calc(100% - 24px);
   text-align: left;
-}
-
-/* Collapsed state - Center icon */
-.cautio-sidebar:not(:hover) .sidebar-item {
+  font-family: inherit;
+  font-size: inherit;
+  /* CRITICAL: Center content when collapsed */
   justify-content: center;
-  padding: 14px 0;
 }
 
-/* Expanded state - Left align */
+/* When expanded, move to left alignment */
 .cautio-sidebar:hover .sidebar-item {
   justify-content: flex-start;
-  padding: 14px 20px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .sidebar-item-icon {
@@ -250,22 +258,26 @@ body {
   height: 22px;
   flex-shrink: 0;
   transition: all 0.2s ease;
+  /* Ensure icon doesn't shift */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-item-text {
   font-size: 14px;
   font-weight: 500;
   opacity: 0;
-  width: 0;
+  max-width: 0;
   overflow: hidden;
   transform: translateX(-10px);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
 }
 
 .cautio-sidebar:hover .sidebar-item-text {
   opacity: 1;
-  width: auto;
+  max-width: 200px;
   transform: translateX(0);
 }
 
@@ -280,19 +292,22 @@ body {
   min-width: 20px;
   text-align: center;
   opacity: 0;
-  width: 0;
+  max-width: 0;
   overflow: hidden;
   transform: scale(0.8);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cautio-sidebar:hover .sidebar-item-badge {
   opacity: 1;
-  width: auto;
+  max-width: 40px;
   transform: scale(1);
 }
 
-/* Sidebar Item States */
+/* ============================================
+   SIDEBAR ITEM STATES
+   ============================================ */
+
 .sidebar-item:hover {
   background: rgba(255, 255, 255, 0.05);
   color: #ffffff;
@@ -315,11 +330,15 @@ body {
   border-radius: 0 2px 2px 0;
 }
 
-/* Sidebar Footer */
+/* ============================================
+   SIDEBAR FOOTER
+   ============================================ */
+
 .sidebar-footer {
   padding: 16px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   margin-top: auto;
+  width: 100%;
 }
 
 .sidebar-footer .sidebar-item {
@@ -332,7 +351,10 @@ body {
   color: #ef4444;
 }
 
-/* Tooltip - Only show when collapsed */
+/* ============================================
+   TOOLTIP - ONLY WHEN COLLAPSED
+   ============================================ */
+
 .sidebar-tooltip {
   position: absolute;
   left: calc(100% + 12px);
