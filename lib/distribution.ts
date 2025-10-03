@@ -25,12 +25,13 @@ export interface DistributionSchedule {
 interface ActiveEmployee {
   employee_id: string
   sign_in_time?: string
+  is_signed_in?: boolean
   is_late: boolean
   late_by_minutes: number
-  users?: {
+  users: {
     full_name: string
     user_id: string
-  }
+  } | null
 }
 
 // ============================================
@@ -104,7 +105,10 @@ export const getActiveEmployeesNow = async () => {
     .eq('date', today)
     .eq('is_signed_in', true)
   
-  return { data: data as ActiveEmployee[] | null, error }
+  // Properly type cast the response
+  const typedData = data as unknown as ActiveEmployee[]
+  
+  return { data: typedData, error }
 }
 
 // ============================================
@@ -129,7 +133,7 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   }
   
   // Get active employees (who have signed in)
-  const { data: activeEmployees } = await getActiveEmployeesNow()
+  const { data: activeEmployees, error: empError } = await getActiveEmployeesNow()
   
   if (!activeEmployees || activeEmployees.length === 0) {
     console.log('❌ No active employees to redistribute to')
@@ -159,9 +163,10 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   
   // Redistribute tasks equally
   for (const taskId of taskIds) {
-    const targetEmployee = activeEmployees[empIndex % activeEmployees.length]
+    const targetEmployee: ActiveEmployee = activeEmployees[empIndex % activeEmployees.length]
+    const employeeName = targetEmployee.users?.full_name || 'Employee'
     
-    console.log(`📝 Assigning task ${taskId} to ${targetEmployee.users?.full_name || 'Employee'}`)
+    console.log(`📝 Assigning task ${taskId} to ${employeeName}`)
     
     // Create temporary assignment
     await supabase
@@ -187,9 +192,10 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   // Redistribute clients equally
   empIndex = 0
   for (const clientId of clientIds) {
-    const targetEmployee = activeEmployees[empIndex % activeEmployees.length]
+    const targetEmployee: ActiveEmployee = activeEmployees[empIndex % activeEmployees.length]
+    const employeeName = targetEmployee.users?.full_name || 'Employee'
     
-    console.log(`🏢 Assigning client ${clientId} to ${targetEmployee.users?.full_name || 'Employee'}`)
+    console.log(`🏢 Assigning client ${clientId} to ${employeeName}`)
     
     await supabase
       .from('client_assignments_realtime')
@@ -358,9 +364,12 @@ export const getDistributionSummary = async () => {
     `)
     .eq('date', today)
   
+  // Type cast the data properly
+  const typedEmployees = activeEmployees as unknown as ActiveEmployee[]
+  
   const summary = []
   
-  for (const emp of activeEmployees || []) {
+  for (const emp of typedEmployees || []) {
     // Get active task assignments
     const { data: tasks } = await supabase
       .from('task_assignments_realtime')
@@ -383,12 +392,10 @@ export const getDistributionSummary = async () => {
       .lte('hour_start', currentHour)
       .gte('hour_end', currentHour)
     
-    const empUsers = emp.users as { full_name: string; user_id: string }
-    
     summary.push({
       employeeId: emp.employee_id,
-      employeeName: empUsers?.full_name || 'Unknown',
-      userId: empUsers?.user_id,
+      employeeName: emp.users?.full_name || 'Unknown',
+      userId: emp.users?.user_id || '',
       isSignedIn: emp.is_signed_in,
       isLate: emp.is_late,
       signInTime: emp.sign_in_time,
