@@ -22,6 +22,17 @@ export interface DistributionSchedule {
   created_at?: string
 }
 
+interface ActiveEmployee {
+  employee_id: string
+  sign_in_time?: string
+  is_late: boolean
+  late_by_minutes: number
+  users?: {
+    full_name: string
+    user_id: string
+  }
+}
+
 // ============================================
 // 1. CREATE HOUR-BASED SCHEDULE (Manual by Admin)
 // ============================================
@@ -93,7 +104,7 @@ export const getActiveEmployeesNow = async () => {
     .eq('date', today)
     .eq('is_signed_in', true)
   
-  return { data, error }
+  return { data: data as ActiveEmployee[] | null, error }
 }
 
 // ============================================
@@ -150,7 +161,7 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   for (const taskId of taskIds) {
     const targetEmployee = activeEmployees[empIndex % activeEmployees.length]
     
-    console.log(`📝 Assigning task ${taskId} to ${targetEmployee.users?.full_name}`)
+    console.log(`📝 Assigning task ${taskId} to ${targetEmployee.users?.full_name || 'Employee'}`)
     
     // Create temporary assignment
     await supabase
@@ -178,7 +189,7 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   for (const clientId of clientIds) {
     const targetEmployee = activeEmployees[empIndex % activeEmployees.length]
     
-    console.log(`🏢 Assigning client ${clientId} to ${targetEmployee.users?.full_name}`)
+    console.log(`🏢 Assigning client ${clientId} to ${targetEmployee.users?.full_name || 'Employee'}`)
     
     await supabase
       .from('client_assignments_realtime')
@@ -321,10 +332,10 @@ export const checkAndRedistributeHourly = async () => {
     
     // If not signed in, redistribute
     if (!signInStatus || !signInStatus.is_signed_in) {
-      console.log(`⚠️ Employee ${schedule.users?.full_name} not signed in - redistributing`)
+      console.log(`⚠️ Employee ${(schedule.users as any)?.full_name} not signed in - redistributing`)
       await redistributeOnAbsence(schedule.assigned_to)
     } else {
-      console.log(`✅ Employee ${schedule.users?.full_name} is signed in`)
+      console.log(`✅ Employee ${(schedule.users as any)?.full_name} is signed in`)
     }
   }
 }
@@ -372,10 +383,12 @@ export const getDistributionSummary = async () => {
       .lte('hour_start', currentHour)
       .gte('hour_end', currentHour)
     
+    const empUsers = emp.users as { full_name: string; user_id: string }
+    
     summary.push({
       employeeId: emp.employee_id,
-      employeeName: emp.users?.full_name || 'Unknown',
-      userId: emp.users?.user_id,
+      employeeName: empUsers?.full_name || 'Unknown',
+      userId: empUsers?.user_id,
       isSignedIn: emp.is_signed_in,
       isLate: emp.is_late,
       signInTime: emp.sign_in_time,
