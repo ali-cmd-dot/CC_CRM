@@ -51,9 +51,9 @@ export const getAllSchedules = async () => {
     .from('distribution_schedule')
     .select(`
       *,
-      tasks(title),
-      clients(name),
-      users!distribution_schedule_assigned_to_fkey(full_name)
+      tasks(title, priority, status),
+      clients(name, total_vehicles),
+      users!distribution_schedule_assigned_to_fkey(full_name, user_id)
     `)
     .order('hour_start', { ascending: true })
   
@@ -61,7 +61,7 @@ export const getAllSchedules = async () => {
 }
 
 // ============================================
-// 3. GET CURRENT HOUR ASSIGNMENTS
+// 3. GET CURRENT HOUR ASSIGNMENTS FOR EMPLOYEE
 // ============================================
 export const getCurrentHourAssignments = async (employeeId: string) => {
   const currentHour = new Date().getHours()
@@ -89,7 +89,7 @@ export const getActiveEmployeesNow = async () => {
   
   const { data, error } = await supabase
     .from('employee_signin_status')
-    .select('employee_id, sign_in_time, is_late, late_by_minutes, users(full_name)')
+    .select('employee_id, sign_in_time, is_late, late_by_minutes, users(full_name, user_id)')
     .eq('date', today)
     .eq('is_signed_in', true)
   
@@ -97,12 +97,14 @@ export const getActiveEmployeesNow = async () => {
 }
 
 // ============================================
-// 5. REDISTRIBUTE ON ABSENCE/LATE
+// 5. REDISTRIBUTE ON ABSENCE/LATE (EQUAL DISTRIBUTION)
 // ============================================
 export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   const currentHour = new Date().getHours()
   
-  // Get tasks/clients that were assigned to absent employee
+  console.log(`🔄 Redistributing for absent employee: ${absentEmployeeId} at hour ${currentHour}`)
+  
+  // Get tasks/clients that were assigned to absent employee for current hour
   const { data: absentAssignments } = await supabase
     .from('distribution_schedule')
     .select('*')
@@ -111,15 +113,32 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
     .gte('hour_end', currentHour)
   
   if (!absentAssignments || absentAssignments.length === 0) {
+    console.log('✅ No assignments to redistribute')
     return { success: true, message: 'No assignments to redistribute' }
   }
   
-  // Get active employees
+  // Get active employees (who have signed in)
   const { data: activeEmployees } = await getActiveEmployeesNow()
   
   if (!activeEmployees || activeEmployees.length === 0) {
+    console.log('❌ No active employees to redistribute to')
     return { success: false, message: 'No active employees to redistribute to' }
   }
+  
+  console.log(`📊 Active employees count: ${activeEmployees.length}`)
+  
+  // Mark all current assignments from absent employee as inactive
+  await supabase
+    .from('task_assignments_realtime')
+    .update({ is_active: false })
+    .eq('employee_id', absentEmployeeId)
+    .eq('is_active', true)
+  
+  await supabase
+    .from('client_assignments_realtime')
+    .update({ is_active: false })
+    .eq('employee_id', absentEmployeeId)
+    .eq('is_active', true)
   
   // Distribute equally
   const taskIds = absentAssignments.filter(a => a.task_id).map(a => a.task_id)
@@ -127,9 +146,11 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
   
   let empIndex = 0
   
-  // Redistribute tasks
+  // Redistribute tasks equally
   for (const taskId of taskIds) {
     const targetEmployee = activeEmployees[empIndex % activeEmployees.length]
+    
+    console.log(`📝 Assigning task ${taskId} to ${targetEmployee.users?.full_name}`)
     
     // Create temporary assignment
     await supabase
@@ -143,13 +164,21 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
         is_temporary: true
       })
     
+    // Update main tasks table
+    await supabase
+      .from('tasks')
+      .update({ assigned_to: targetEmployee.employee_id })
+      .eq('id', taskId)
+    
     empIndex++
   }
   
-  // Redistribute clients
+  // Redistribute clients equally
   empIndex = 0
   for (const clientId of clientIds) {
     const targetEmployee = activeEmployees[empIndex % activeEmployees.length]
+    
+    console.log(`🏢 Assigning client ${clientId} to ${targetEmployee.users?.full_name}`)
     
     await supabase
       .from('client_assignments_realtime')
@@ -165,6 +194,8 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
     empIndex++
   }
   
+  console.log(`✅ Redistributed ${taskIds.length} tasks and ${clientIds.length} clients to ${activeEmployees.length} employees`)
+  
   return { 
     success: true, 
     message: `Redistributed ${taskIds.length} tasks and ${clientIds.length} clients`,
@@ -173,26 +204,30 @@ export const redistributeOnAbsence = async (absentEmployeeId: string) => {
 }
 
 // ============================================
-// 6. RESTORE ON LATE SIGN-IN
+// 6. RESTORE ON LATE SIGN-IN (Give back original assignments)
 // ============================================
 export const restoreOnLateSignIn = async (employeeId: string) => {
   const today = new Date().toISOString().split('T')[0]
+  const currentHour = new Date().getHours()
   
-  // Mark all temporary assignments as inactive
+  console.log(`🔙 Restoring assignments for late employee: ${employeeId} at hour ${currentHour}`)
+  
+  // Deactivate all temporary assignments that were reassigned from this employee
   await supabase
     .from('task_assignments_realtime')
     .update({ is_active: false })
     .eq('reassigned_from', employeeId)
     .eq('is_temporary', true)
+    .eq('is_active', true)
   
   await supabase
     .from('client_assignments_realtime')
     .update({ is_active: false })
     .eq('reassigned_from', employeeId)
     .eq('is_temporary', true)
+    .eq('is_active', true)
   
-  // Get original assignments for current hour
-  const currentHour = new Date().getHours()
+  // Get original assignments for current hour from schedule
   const { data: originalSchedule } = await supabase
     .from('distribution_schedule')
     .select('*')
@@ -200,10 +235,15 @@ export const restoreOnLateSignIn = async (employeeId: string) => {
     .lte('hour_start', currentHour)
     .gte('hour_end', currentHour)
   
-  if (!originalSchedule) return { success: false }
+  if (!originalSchedule || originalSchedule.length === 0) {
+    console.log('✅ No original schedule to restore')
+    return { success: true, message: 'No original schedule to restore' }
+  }
   
-  // Restore tasks
+  // Restore tasks to original employee
   for (const schedule of originalSchedule.filter(s => s.task_id)) {
+    console.log(`📝 Restoring task ${schedule.task_id} to original employee`)
+    
     await supabase
       .from('task_assignments_realtime')
       .insert({
@@ -213,10 +253,18 @@ export const restoreOnLateSignIn = async (employeeId: string) => {
         is_active: true,
         is_temporary: false
       })
+    
+    // Update main tasks table
+    await supabase
+      .from('tasks')
+      .update({ assigned_to: employeeId })
+      .eq('id', schedule.task_id)
   }
   
-  // Restore clients
+  // Restore clients to original employee
   for (const schedule of originalSchedule.filter(s => s.client_id)) {
+    console.log(`🏢 Restoring client ${schedule.client_id} to original employee`)
+    
     await supabase
       .from('client_assignments_realtime')
       .insert({
@@ -228,9 +276,14 @@ export const restoreOnLateSignIn = async (employeeId: string) => {
       })
   }
   
+  const taskCount = originalSchedule.filter(s => s.task_id).length
+  const clientCount = originalSchedule.filter(s => s.client_id).length
+  
+  console.log(`✅ Restored ${taskCount} tasks and ${clientCount} clients to original employee`)
+  
   return { 
     success: true, 
-    message: `Restored assignments for ${originalSchedule.length} items`
+    message: `Restored ${taskCount} tasks and ${clientCount} clients`
   }
 }
 
@@ -241,14 +294,21 @@ export const checkAndRedistributeHourly = async () => {
   const currentHour = new Date().getHours()
   const today = new Date().toISOString().split('T')[0]
   
+  console.log(`⏰ Running hourly check for hour ${currentHour}`)
+  
   // Get all scheduled assignments for current hour
   const { data: schedules } = await supabase
     .from('distribution_schedule')
-    .select('*')
+    .select('*, users(full_name)')
     .lte('hour_start', currentHour)
     .gte('hour_end', currentHour)
   
-  if (!schedules) return
+  if (!schedules || schedules.length === 0) {
+    console.log('📭 No schedules for current hour')
+    return
+  }
+  
+  console.log(`📋 Found ${schedules.length} schedules for hour ${currentHour}`)
   
   // Check each employee's sign-in status
   for (const schedule of schedules) {
@@ -261,7 +321,10 @@ export const checkAndRedistributeHourly = async () => {
     
     // If not signed in, redistribute
     if (!signInStatus || !signInStatus.is_signed_in) {
+      console.log(`⚠️ Employee ${schedule.users?.full_name} not signed in - redistributing`)
       await redistributeOnAbsence(schedule.assigned_to)
+    } else {
+      console.log(`✅ Employee ${schedule.users?.full_name} is signed in`)
     }
   }
 }
@@ -279,33 +342,49 @@ export const getDistributionSummary = async () => {
       employee_id,
       is_signed_in,
       is_late,
-      users(full_name)
+      sign_in_time,
+      users(full_name, user_id)
     `)
     .eq('date', today)
   
   const summary = []
   
   for (const emp of activeEmployees || []) {
+    // Get active task assignments
     const { data: tasks } = await supabase
       .from('task_assignments_realtime')
-      .select('*, tasks(title)')
+      .select('*, tasks(title, priority, status)')
       .eq('employee_id', emp.employee_id)
       .eq('is_active', true)
     
+    // Get active client assignments
     const { data: clients } = await supabase
       .from('client_assignments_realtime')
-      .select('*, clients(name)')
+      .select('*, clients(name, total_vehicles)')
       .eq('employee_id', emp.employee_id)
       .eq('is_active', true)
     
+    // Get scheduled assignments for current hour
+    const { data: scheduled } = await supabase
+      .from('distribution_schedule')
+      .select('*')
+      .eq('assigned_to', emp.employee_id)
+      .lte('hour_start', currentHour)
+      .gte('hour_end', currentHour)
+    
     summary.push({
-      employee: emp.users?.full_name,
+      employeeId: emp.employee_id,
+      employeeName: emp.users?.full_name || 'Unknown',
+      userId: emp.users?.user_id,
       isSignedIn: emp.is_signed_in,
       isLate: emp.is_late,
-      tasks: tasks?.length || 0,
-      clients: clients?.length || 0,
-      taskDetails: tasks,
-      clientDetails: clients
+      signInTime: emp.sign_in_time,
+      tasksCount: tasks?.length || 0,
+      clientsCount: clients?.length || 0,
+      scheduledCount: scheduled?.length || 0,
+      taskDetails: tasks || [],
+      clientDetails: clients || [],
+      scheduledDetails: scheduled || []
     })
   }
   
@@ -322,4 +401,44 @@ export const deleteSchedule = async (scheduleId: string) => {
     .eq('id', scheduleId)
   
   return { error }
+}
+
+// ============================================
+// 10. UPDATE SCHEDULE
+// ============================================
+export const updateSchedule = async (scheduleId: string, updates: Partial<DistributionSchedule>) => {
+  const { data, error } = await supabase
+    .from('distribution_schedule')
+    .update(updates)
+    .eq('id', scheduleId)
+    .select()
+    .single()
+  
+  return { data, error }
+}
+
+// ============================================
+// 11. GET EMPLOYEE'S SCHEDULE FOR TODAY
+// ============================================
+export const getEmployeeScheduleToday = async (employeeId: string) => {
+  const { data, error } = await supabase
+    .from('distribution_schedule')
+    .select(`
+      *,
+      tasks(title, description, priority, status),
+      clients(name, company_name, total_vehicles)
+    `)
+    .eq('assigned_to', employeeId)
+    .order('hour_start', { ascending: true })
+  
+  return { data, error }
+}
+
+// ============================================
+// 12. MANUALLY TRIGGER REDISTRIBUTION (For testing)
+// ============================================
+export const manualRedistribute = async () => {
+  console.log('🔧 Manual redistribution triggered')
+  await checkAndRedistributeHourly()
+  return { success: true, message: 'Manual redistribution completed' }
 }
