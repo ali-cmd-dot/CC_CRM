@@ -31,6 +31,8 @@ export default function CautioCRM() {
   const [loginForm, setLoginForm] = useState({ user_id: '', password: '' })
   const [activeSection, setActiveSection] = useState('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isSignedIn, setIsSignedIn] = useState(false)
+  const [signInTime, setSignInTime] = useState<string | null>(null)
   
   // Data states
   const [clients, setClients] = useState<Client[]>([])
@@ -110,6 +112,7 @@ export default function CautioCRM() {
   const handleSignIn = async () => {
     if (!currentUser?.shift_start) return
     
+    setLoading(true)
     const { data, error, lateMinutes } = await attendanceHelpers.signIn(
       currentUser.id,
       currentUser.shift_start
@@ -117,23 +120,60 @@ export default function CautioCRM() {
     
     if (error) {
       alert('Sign in failed: ' + error)
+      setLoading(false)
       return
     }
     
+    // Update sign-in status in real-time tracking
+    await supabase
+      .from('employee_signin_status')
+      .upsert({
+        employee_id: currentUser.id,
+        date: new Date().toISOString().split('T')[0],
+        is_signed_in: true,
+        sign_in_time: new Date().toISOString(),
+        expected_sign_in: currentUser.shift_start,
+        is_late: lateMinutes > 0,
+        late_by_minutes: lateMinutes
+      })
+    
+    // Trigger task/client redistribution
+    await supabase.rpc('distribute_tasks_by_hour')
+    
+    setIsSignedIn(true)
+    setSignInTime(new Date().toLocaleTimeString())
+    
     const time = new Date().toLocaleTimeString()
-    alert(`Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateMinutes} minutes` : '\n✓ On Time'}`)
+    alert(`✓ Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateMinutes} minutes` : '\n✓ On Time'}`)
     loadInitialData()
+    setLoading(false)
   }
 
   const handleSignOut = async () => {
+    setLoading(true)
     const { error } = await attendanceHelpers.signOut(currentUser!.id)
     
     if (error) {
       alert('Sign out failed')
+      setLoading(false)
       return
     }
     
-    alert(`Signed out at ${new Date().toLocaleTimeString()}`)
+    // Update sign-in status
+    await supabase
+      .from('employee_signin_status')
+      .update({ 
+        is_signed_in: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('employee_id', currentUser!.id)
+      .eq('date', new Date().toISOString().split('T')[0])
+    
+    setIsSignedIn(false)
+    setSignInTime(null)
+    
+    alert(`✓ Signed out at ${new Date().toLocaleTimeString()}`)
+    setLoading(false)
   }
 
   const openModal = (type: string, data: any = {}) => {
@@ -617,14 +657,31 @@ export default function CautioCRM() {
             <div className="flex items-center gap-4">
               {!isAdmin && (
                 <>
-                  <button onClick={handleSignIn} className="btn-success text-sm">
-                    <Clock className="w-4 h-4 inline mr-2" />
-                    Sign In
-                  </button>
-                  <button onClick={handleSignOut} className="btn-secondary text-sm">
-                    <Clock className="w-4 h-4 inline mr-2" />
-                    Sign Out
-                  </button>
+                  {!isSignedIn ? (
+                    <button 
+                      onClick={handleSignIn} 
+                      disabled={loading}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg flex items-center gap-2"
+                    >
+                      <Clock className="w-4 h-4" />
+                      {loading ? 'Signing In...' : 'Sign In'}
+                    </button>
+                  ) : (
+                    <>
+                      <div className="bg-green-600/20 border-2 border-green-500 text-green-400 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        Signed In at {signInTime}
+                      </div>
+                      <button 
+                        onClick={handleSignOut}
+                        disabled={loading}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg flex items-center gap-2"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        {loading ? 'Signing Out...' : 'Sign Out'}
+                      </button>
+                    </>
+                  )}
                 </>
               )}
               
