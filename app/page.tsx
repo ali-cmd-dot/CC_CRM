@@ -30,7 +30,7 @@ export default function CautioCRM() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [loginForm, setLoginForm] = useState({ user_id: '', password: '' })
   const [activeSection, setActiveSection] = useState('dashboard')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   // Data states
   const [clients, setClients] = useState<Client[]>([])
@@ -543,23 +543,13 @@ export default function CautioCRM() {
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white">
       {/* Perfect Cautio Sidebar */}
-      <div className={`cautio-sidebar ${sidebarCollapsed ? 'collapsed' : 'expanded'}`}>
-        {/* Sidebar Toggle Button */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="sidebar-toggle-btn"
-          title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-        </button>
-
+      <div className="cautio-sidebar">
         {/* Sidebar Header with Logo */}
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <Shield className="logo-icon animate-glow" />
             <div className="logo-text">
               <span className="logo-title">cautio</span>
-              <span className="beta-badge">BETA</span>
             </div>
           </div>
         </div>
@@ -593,9 +583,7 @@ export default function CautioCRM() {
                 {item.badge && item.badge > 0 && (
                   <span className="sidebar-item-badge">{item.badge}</span>
                 )}
-                {sidebarCollapsed && (
-                  <span className="sidebar-tooltip">{item.label}</span>
-                )}
+                <span className="sidebar-tooltip">{item.label}</span>
               </button>
             )
           })}
@@ -609,17 +597,15 @@ export default function CautioCRM() {
           >
             <LogOut className="sidebar-item-icon" />
             <span className="sidebar-item-text">Logout</span>
-            {sidebarCollapsed && (
-              <span className="sidebar-tooltip">Logout</span>
-            )}
+            <span className="sidebar-tooltip">Logout</span>
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-[72px]' : 'ml-[240px]'}`}>
-        {/* Header */}
-        <div className="header">
+      <div className="ml-[72px] transition-all duration-300">
+        {/* Glassmorphic Header */}
+        <div className="header-glass">
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div>
