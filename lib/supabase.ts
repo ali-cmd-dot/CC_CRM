@@ -324,8 +324,22 @@ export const attendanceHelpers = {
     const now = new Date()
     const today = now.toISOString().split('T')[0]
     
-    const scheduled = new Date(`${today}T${scheduledTime}`)
-    const lateMinutes = Math.max(0, Math.floor((now.getTime() - scheduled.getTime()) / 60000))
+    // Parse scheduled time properly (format: "09:00" or "09:00:00")
+    const [schedHours, schedMinutes] = scheduledTime.split(':').map(Number)
+    const scheduled = new Date(now)
+    scheduled.setHours(schedHours, schedMinutes, 0, 0)
+    
+    // Calculate late minutes - only if current time is after scheduled time
+    const timeDiffMs = now.getTime() - scheduled.getTime()
+    const lateMinutes = timeDiffMs > 0 ? Math.floor(timeDiffMs / 60000) : 0
+    
+    console.log('Sign In Calculation:', {
+      now: now.toLocaleString(),
+      scheduled: scheduled.toLocaleString(),
+      timeDiffMs,
+      lateMinutes,
+      scheduledTime
+    })
     
     const { data, error } = await supabase
       .from('attendance')
@@ -355,8 +369,12 @@ export const attendanceHelpers = {
       })
     
     // Trigger redistribution
-    await supabase.rpc('distribute_tasks_by_hour')
-    await supabase.rpc('distribute_clients_by_hour')
+    try {
+      await supabase.rpc('distribute_tasks_by_hour')
+      await supabase.rpc('distribute_clients_by_hour')
+    } catch (rpcError) {
+      console.log('RPC functions not available:', rpcError)
+    }
     
     return { data, error, lateMinutes }
   },
@@ -387,8 +405,12 @@ export const attendanceHelpers = {
       .eq('date', today)
     
     // Trigger redistribution
-    await supabase.rpc('distribute_tasks_by_hour')
-    await supabase.rpc('distribute_clients_by_hour')
+    try {
+      await supabase.rpc('distribute_tasks_by_hour')
+      await supabase.rpc('distribute_clients_by_hour')
+    } catch (rpcError) {
+      console.log('RPC functions not available:', rpcError)
+    }
     
     return { data, error }
   },
