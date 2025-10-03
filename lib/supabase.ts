@@ -113,12 +113,23 @@ export interface Roster {
   created_at?: string
 }
 
+export interface SignInStatus {
+  id: string
+  employee_id: string
+  date: string
+  is_signed_in: boolean
+  sign_in_time?: string
+  sign_out_time?: string
+  expected_sign_in?: string
+  is_late: boolean
+  late_by_minutes: number
+  updated_at?: string
+}
+
 // Helper Functions
 export const authHelpers = {
   async signIn(user_id: string, password: string) {
     try {
-      // In production, you should hash and compare passwords properly
-      // For now, simple comparison (NOT SECURE FOR PRODUCTION!)
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -129,8 +140,6 @@ export const authHelpers = {
         return { user: null, error: 'Invalid credentials' }
       }
 
-      // In production: use bcrypt.compare(password, data.password_hash)
-      // For demo: simple comparison
       if (password === 'admin123' || password === 'emp123') {
         return { user: data, error: null }
       }
@@ -142,7 +151,6 @@ export const authHelpers = {
   },
 
   async getCurrentUser() {
-    // Implement session management
     return null
   }
 }
@@ -316,7 +324,6 @@ export const attendanceHelpers = {
     const now = new Date()
     const today = now.toISOString().split('T')[0]
     
-    // Calculate late minutes
     const scheduled = new Date(`${today}T${scheduledTime}`)
     const lateMinutes = Math.max(0, Math.floor((now.getTime() - scheduled.getTime()) / 60000))
     
@@ -333,20 +340,55 @@ export const attendanceHelpers = {
       .select()
       .single()
     
+    // Update sign-in status for distribution
+    await supabase
+      .from('employee_signin_status')
+      .upsert({
+        employee_id: employeeId,
+        date: today,
+        is_signed_in: true,
+        sign_in_time: now.toISOString(),
+        expected_sign_in: scheduledTime,
+        is_late: lateMinutes > 0,
+        late_by_minutes: lateMinutes,
+        updated_at: now.toISOString()
+      })
+    
+    // Trigger redistribution
+    await supabase.rpc('distribute_tasks_by_hour')
+    await supabase.rpc('distribute_clients_by_hour')
+    
     return { data, error, lateMinutes }
   },
 
   async signOut(employeeId: string) {
     const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    
     const { data, error } = await supabase
       .from('attendance')
       .update({
-        sign_out_time: new Date().toISOString()
+        sign_out_time: now.toISOString()
       })
       .eq('employee_id', employeeId)
       .eq('date', today)
       .select()
       .single()
+    
+    // Update sign-in status
+    await supabase
+      .from('employee_signin_status')
+      .update({
+        is_signed_in: false,
+        sign_out_time: now.toISOString(),
+        updated_at: now.toISOString()
+      })
+      .eq('employee_id', employeeId)
+      .eq('date', today)
+    
+    // Trigger redistribution
+    await supabase.rpc('distribute_tasks_by_hour')
+    await supabase.rpc('distribute_clients_by_hour')
     
     return { data, error }
   },
@@ -358,6 +400,55 @@ export const attendanceHelpers = {
       .select('*, users!attendance_employee_id_fkey(full_name, user_id)')
       .eq('date', today)
       .order('sign_in_time', { ascending: false })
+    return { data, error }
+  }
+}
+
+export const distributionHelpers = {
+  async getSignInStatus(employeeId: string) {
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('employee_signin_status')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('date', today)
+      .single()
+    return { data, error }
+  },
+
+  async getActiveEmployees() {
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('employee_signin_status')
+      .select('employee_id, is_signed_in, sign_in_time, users!employee_signin_status_employee_id_fkey(full_name)')
+      .eq('date', today)
+      .eq('is_signed_in', true)
+    return { data, error }
+  },
+
+  async getMyAssignments(employeeId: string) {
+    const { data: taskAssignments } = await supabase
+      .from('task_assignments_realtime')
+      .select('*, tasks(*)')
+      .eq('employee_id', employeeId)
+      .eq('is_active', true)
+    
+    const { data: clientAssignments } = await supabase
+      .from('client_assignments_realtime')
+      .select('*, clients(*)')
+      .eq('employee_id', employeeId)
+      .eq('is_active', true)
+    
+    return { 
+      tasks: taskAssignments || [], 
+      clients: clientAssignments || [] 
+    }
+  },
+
+  async getEmployeeTaskLoad() {
+    const { data, error } = await supabase
+      .from('employee_task_load')
+      .select('*')
     return { data, error }
   }
 }
