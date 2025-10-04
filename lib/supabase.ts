@@ -140,7 +140,8 @@ export const authHelpers = {
         return { user: null, error: 'Invalid credentials' }
       }
 
-      if (password === 'admin123' || password === 'emp123') {
+      // Check if password matches database password
+      if (data.password_hash === password) {
         return { user: data, error: null }
       }
 
