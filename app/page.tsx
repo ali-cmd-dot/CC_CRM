@@ -510,130 +510,128 @@ export default function CautioCRM() {
   // Login Page
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-[#0a0a0b] flex">
-        {/* Left Side - 3D Shield Design */}
-        <div className="hidden lg:flex lg:w-1/2 items-center justify-center relative overflow-hidden">
-          {/* Background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10"></div>
-          
-          {/* Vertical lines */}
-          <div className="absolute inset-0 flex">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div 
-                key={i} 
-                className="flex-1 border-r border-gray-800/30"
-                style={{ animationDelay: `${i * 0.1}s` }}
-              ></div>
-            ))}
+      <div className="min-h-screen bg-[#0a0a0b]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
+          {/* Left Side - Image with Vertical Lines */}
+          <div className="relative hidden lg:flex items-center justify-center">
+            {/* Vertical Lines Background */}
+            <div className="absolute inset-0 h-full px-14">
+              <div className="hidden sm:flex h-full w-full justify-between">
+                <div className="w-px h-full bg-gray-800/30"></div>
+                <div className="w-px h-full bg-gray-800/30"></div>
+                <div className="w-px h-full bg-gray-800/30"></div>
+                <div className="w-px h-full bg-gray-800/30"></div>
+                <div className="w-px h-full bg-gray-800/30"></div>
+                <div className="w-px h-full bg-gray-800/30"></div>
+                <div className="w-px h-full bg-gray-800/30"></div>
+              </div>
+            </div>
+            
+            {/* Main Logo */}
+            <div className="relative z-10 flex items-center justify-center">
+              <img 
+                src="/main-logo-1.png" 
+                alt="Cautio" 
+                width={436} 
+                height={436}
+                className="w-[436px] h-[436px]"
+              />
+            </div>
           </div>
-          
-          {/* 3D Shield */}
-          <div className="relative z-10">
-            <div className="w-96 h-96 relative">
-              {/* Outer glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
-              
-              {/* Main shield circle */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-80 h-80 rounded-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 shadow-2xl flex items-center justify-center">
-                  {/* Inner circle */}
-                  <div className="w-56 h-56 rounded-full bg-gradient-to-br from-gray-800 via-gray-900 to-black shadow-inner flex items-center justify-center">
-                    {/* Shield icon */}
-                    <Shield className="w-32 h-32 text-gray-600" strokeWidth={1.5} />
+
+          {/* Right Side - Login Form */}
+          <div className="flex justify-center items-center p-4">
+            <div className="w-full max-w-[27.18rem] flex flex-col p-4">
+              {/* Shield Icon */}
+              <div className="flex justify-center mb-8">
+                <svg className="h-[3.8rem] w-[3.8rem] rounded-2xl" width="60" height="60" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="1080" height="1080" fill="#0026A3"></rect>
+                  <path fillRule="evenodd" clipRule="evenodd" d="M173 540.227C173 758.862 308.449 913 540.568 913C771.596 913 907.044 758.862 907.044 540.227C907.044 322.685 771.596 168 540.568 168C308.449 168.547 173 322.685 173 540.227ZM694.04 409.592C700.048 409.592 704.963 414.511 704.963 420.524C704.963 427.629 704.964 435.282 705.51 442.934C707.694 550.065 710.425 684.526 543.845 743.558C541.66 744.104 538.93 744.104 536.745 743.558C370.165 684.526 372.896 549.519 375.081 442.934C375.081 435.282 375.627 427.629 375.627 420.524C375.627 414.511 380.542 409.592 386.55 409.592C445.536 407.952 492.506 390.461 532.922 354.933C537.291 351.107 543.845 351.107 548.214 354.933C588.084 389.915 635.054 407.406 694.04 409.592Z" fill="white"></path>
+                </svg>
+              </div>
+
+              {/* Heading */}
+              <div className="flex flex-col items-center gap-2 mb-8">
+                <h1 className="text-2xl font-semibold text-white">Sign in</h1>
+              </div>
+
+              {/* Login Form */}
+              <form onSubmit={handleLogin} className="gap-4">
+                {/* Email Field */}
+                <div className="mb-5">
+                  <label className="mb-2 inline-block text-sm font-semibold text-gray-300">
+                    Email
+                  </label>
+                  <div className="relative flex w-full items-center">
+                    <input
+                      type="text"
+                      value={loginForm.user_id}
+                      onChange={(e) => setLoginForm({ ...loginForm, user_id: e.target.value })}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800/50 p-3 text-white outline-none focus:border-blue-600 focus:outline-blue-600"
+                      placeholder="example@gmail.com"
+                      required
+                    />
                   </div>
                 </div>
-              </div>
-              
-              {/* Light reflection */}
-              <div className="absolute top-20 left-20 w-40 h-40 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-2xl"></div>
-            </div>
-          </div>
-        </div>
 
-        {/* Right Side - Login Form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-          <div className="w-full max-w-md">
-            {/* Logo */}
-            <div className="flex justify-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/50">
-                <Shield className="w-10 h-10 text-white" />
-              </div>
-            </div>
-            
-            {/* Heading */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">Sign in</h1>
-              <p className="text-gray-400">Welcome to Cautio</p>
-            </div>
-            
-            {/* Login Form */}
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">Email</label>
-                <input
-                  type="text"
-                  value={loginForm.user_id}
-                  onChange={(e) => setLoginForm({ ...loginForm, user_id: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/5 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  placeholder="example@gmail.com"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">Password</label>
-                <div className="relative">
-                  <input
-                    type={passwordVisible ? "text" : "password"}
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    className="w-full px-4 py-3 pr-12 bg-white/5 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                    placeholder="Password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPasswordVisible(!passwordVisible)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
+                {/* Password Field */}
+                <div className="mb-3 mt-5">
+                  <label className="mb-2 inline-block text-sm font-semibold text-gray-300">
+                    Password
+                  </label>
+                  <div className="relative flex w-full items-center">
+                    <input
+                      type={passwordVisible ? "text" : "password"}
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800/50 p-3 pr-11 text-white outline-none focus:border-blue-600 focus:outline-blue-600"
+                      placeholder="Password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPasswordVisible(!passwordVisible)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-white"
+                    >
+                      <Eye className="h-6 w-6" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="text-right">
-                <a href="#" className="text-sm text-blue-500 hover:text-blue-400 transition-colors">
+
+                {/* Forgot Password */}
+                <a href="#" className="flex cursor-pointer justify-start text-sm font-medium text-blue-600 hover:text-blue-500">
                   Forgot Password?
                 </a>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50"
-              >
-                {loading ? 'Signing in...' : 'Login'}
-              </button>
-            </form>
-            
-            {/* Demo Credentials */}
-            <div className="mt-8 pt-6 border-t border-gray-800">
-              <p className="text-center text-sm text-gray-400 mb-3">Demo Credentials:</p>
-              <div className="space-y-2 text-xs">
-                <div className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between">
-                  <span className="text-gray-400">Admin:</span>
-                  <div className="flex gap-2">
-                    <span className="text-blue-400 font-mono">admin</span>
-                    <span className="text-gray-500">/</span>
-                    <span className="text-blue-400 font-mono">admin123</span>
+
+                {/* Login Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-4 w-full rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-[0px_0.5px_1px_0px_rgba(255,255,255,0.50)_inset] hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? 'Signing in...' : 'Login'}
+                </button>
+              </form>
+
+              {/* Demo Credentials */}
+              <div className="mt-8 pt-6 border-t border-gray-800">
+                <p className="text-center text-sm text-gray-400 mb-3">Demo Credentials:</p>
+                <div className="space-y-2 text-xs">
+                  <div className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-gray-400">Admin:</span>
+                    <div className="flex gap-2">
+                      <span className="text-blue-400 font-mono">admin</span>
+                      <span className="text-gray-500">/</span>
+                      <span className="text-blue-400 font-mono">admin123</span>
+                    </div>
                   </div>
-                </div>
-                <div className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between">
-                  <span className="text-gray-400">Employee:</span>
-                  <div className="flex gap-2">
-                    <span className="text-blue-400 font-mono">emp001</span>
-                    <span className="text-gray-500">/</span>
-                    <span className="text-blue-400 font-mono">emp123</span>
+                  <div className="bg-gray-800/50 rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-gray-400">Employee:</span>
+                    <div className="flex gap-2">
+                      <span className="text-blue-400 font-mono">emp001</span>
+                      <span className="text-gray-500">/</span>
+                      <span className="text-blue-400 font-mono">emp123</span>
+                    </div>
                   </div>
                 </div>
               </div>
