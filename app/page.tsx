@@ -192,6 +192,7 @@ export default function CautioCRM() {
     setModalData({})
   }
 
+  // UPDATED: CSV Upload with only vehicle numbers
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, clientId: string) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -199,25 +200,40 @@ export default function CautioCRM() {
     setLoading(true)
     
     try {
-      const filePath = `${clientId}/${Date.now()}_${file.name}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-files')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      await supabase.from('client_files').insert({
+      // Read CSV file
+      const text = await file.text()
+      const lines = text.split('\n').filter(line => line.trim())
+      
+      // Skip header row (first line)
+      const vehicleNumbers = lines.slice(1)
+      
+      // Create vehicle objects with only vehicle numbers
+      const vehiclesToInsert = vehicleNumbers.map(vehicleNum => ({
+        vehicle_id: 'VEH' + Date.now() + Math.random().toString(36).substr(2, 9),
         client_id: clientId,
-        file_name: file.name,
-        file_path: filePath,
-        file_size: file.size,
-        file_type: file.type,
-        uploaded_by: currentUser?.id
-      })
-
-      alert('✓ File uploaded successfully!')
+        vehicle_number: vehicleNum.trim(),
+        vehicle_type: 'Not Specified',
+        driver_name: 'Not Assigned',
+        driver_phone: '',
+        status: 'online' as const,
+        alerts_active: false,
+        video_recording: true
+      }))
+      
+      // Insert all vehicles into database
+      const { error } = await supabase
+        .from('vehicles')
+        .insert(vehiclesToInsert)
+      
+      if (error) throw error
+      
+      alert(`✓ ${vehiclesToInsert.length} vehicles added successfully!`)
+      
+      // Reload vehicles for this client
+      loadVehicles(clientId)
     } catch (error) {
-      alert('✗ Upload failed')
+      console.error(error)
+      alert('✗ Upload failed. Please check CSV format.')
     }
     
     setLoading(false)
@@ -505,14 +521,12 @@ export default function CautioCRM() {
     setRedistributing(false)
   }
 
-  // Login Page - EXACT CSS from HTML reference
+  // Login Page
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-[#0a0a0b]">
         <div className="grid grid-cols-2">
-          {/* Left Side - Logo with Vertical Lines */}
           <div className="relative flex items-center justify-center sm:mt-0">
-            {/* Vertical Lines Background */}
             <div className="absolute inset-0 h-full px-[3.5rem]">
               <div className="lines hidden sm:flex sm:h-full sm:w-full sm:justify-between">
                 <div className="line"></div>
@@ -525,7 +539,6 @@ export default function CautioCRM() {
               </div>
             </div>
             
-            {/* Main Logo */}
             <div className="relative z-10 flex items-center justify-center sm:mt-0 sm:h-screen">
               <img 
                 alt="Auth"
@@ -538,10 +551,8 @@ export default function CautioCRM() {
             </div>
           </div>
 
-          {/* Right Side - Login Form */}
           <div className="flex justify-center self-center">
             <div className="flex w-[27.18rem] flex-col p-4">
-              {/* Shield Icon */}
               <div className="flex justify-center">
                 <svg className="h-[3.8rem] w-[3.8rem] rounded-2xl" width="60" height="60" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect width="1080" height="1080" fill="#0026A3"></rect>
@@ -549,14 +560,11 @@ export default function CautioCRM() {
                 </svg>
               </div>
 
-              {/* Heading */}
               <div className="my-8 flex flex-col items-center gap-2">
                 <span className="text-heading-6 text-dark-base-600">Sign in</span>
               </div>
 
-              {/* Login Form */}
               <form className="gap-4" onSubmit={handleLogin} noValidate>
-                {/* Email Field */}
                 <div className="mb-5">
                   <div className="flex flex-col items-start">
                     <label htmlFor="email-field" className="mb-2 inline-block dark:text-body-l-semibold dark:text-dark-base-600">
@@ -578,7 +586,6 @@ export default function CautioCRM() {
                   </div>
                 </div>
 
-                {/* Password Field */}
                 <div className="mb-3 mt-5">
                   <div className="flex flex-col items-start">
                     <label htmlFor="password-field" className="mb-2 inline-block dark:text-body-l-semibold dark:text-dark-base-600">
@@ -608,12 +615,10 @@ export default function CautioCRM() {
                   </div>
                 </div>
 
-                {/* Forgot Password */}
                 <a className="flex cursor-pointer justify-start text-body-m-medium dark:text-brand-blue-600" href="#">
                   Forgot Password?
                 </a>
 
-                {/* Login Button */}
                 <div>
                   <button
                     className="flex items-center justify-center gap-x-2 rounded-full px-5 py-3 text-body-s-semibold disabled:cursor-not-allowed disabled:opacity-50 dark:text-utility-white dark:bg-brand-blue-600 dark:shadow-[0px_0.5px_1px_0px_rgba(255,255,255,0.50)inset] dark:hover:bg-brand-blue-500 disabled:dark:hover:bg-brand-blue-600 mt-4 w-full"
@@ -633,7 +638,6 @@ export default function CautioCRM() {
 
   const isAdmin = currentUser.role === 'admin'
 
-  // Clickable metrics with navigation
   const metrics = [
     { 
       value: clients.length, 
@@ -687,7 +691,6 @@ export default function CautioCRM() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white">
-      {/* Perfect Cautio Sidebar */}
       <div className="cautio-sidebar">
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -742,9 +745,7 @@ export default function CautioCRM() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="ml-[72px] transition-all duration-300">
-        {/* Glassmorphic Header */}
         <div className="header-glass">
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -812,7 +813,6 @@ export default function CautioCRM() {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="p-6">
           {isAdmin ? (
             <>
@@ -1158,10 +1158,10 @@ export default function CautioCRM() {
                             </button>
                             <label className="btn-success text-sm cursor-pointer">
                               <Upload className="w-4 h-4 inline mr-2" />
-                              Upload
+                              Upload CSV
                               <input
                                 type="file"
-                                accept=".csv,.xlsx,.xls"
+                                accept=".csv"
                                 onChange={(e) => handleFileUpload(e, client.id)}
                                 className="hidden"
                               />
@@ -1838,7 +1838,6 @@ export default function CautioCRM() {
         </div>
       </div>
 
-      {/* Modals for Admin */}
       {isAdmin && (
         <>
           {showModal === 'addClient' && (
