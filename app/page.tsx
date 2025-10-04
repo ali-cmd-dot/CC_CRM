@@ -658,17 +658,17 @@ export default function CautioCRM() {
         <nav className="sidebar-nav">
           {(isAdmin ? [
             { id: 'dashboard', label: 'Dashboard', icon: Home },
-            { id: 'clients', label: 'Fleet', icon: Truck },
-            { id: 'employees', label: 'Drivers', icon: Users },
+            { id: 'clients', label: 'Clients', icon: Truck },
+            { id: 'employees', label: 'Employees', icon: Users },
             { id: 'tasks', label: 'Tasks', icon: ClipboardCheck },
             { id: 'distribution', label: 'Distribution', icon: Zap },
             { id: 'attendance', label: 'Attendance', icon: Clock },
-            { id: 'leaves', label: 'Leaves', icon: Calendar, badge: leaveRequests.length },
+            { id: 'leaves', label: 'Leaves', icon: Calendar },
             { id: 'roster', label: 'Reports', icon: BarChart3 }
           ] : [
             { id: 'dashboard', label: 'Dashboard', icon: Home },
             { id: 'my-tasks', label: 'My Tasks', icon: ClipboardCheck },
-            { id: 'my-clients', label: 'My Fleet', icon: Truck },
+            { id: 'my-clients', label: 'My Clients', icon: Truck },
             { id: 'my-roster', label: 'My Roster', icon: Calendar },
             { id: 'request-leave', label: 'Leave Request', icon: FileText }
           ]).map((item) => {
@@ -681,9 +681,6 @@ export default function CautioCRM() {
               >
                 <Icon className="sidebar-item-icon" />
                 <span className="sidebar-item-text">{item.label}</span>
-                {item.badge && item.badge > 0 && (
-                  <span className="sidebar-item-badge">{item.badge}</span>
-                )}
                 <span className="sidebar-tooltip">{item.label}</span>
               </button>
             )
@@ -1066,7 +1063,7 @@ export default function CautioCRM() {
               {activeSection === 'clients' && (
                 <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Fleet Management</h2>
+                    <h2 className="text-2xl font-bold">Client Management</h2>
                     <button onClick={() => openModal('addClient')} className="btn-primary">
                       <Plus className="w-4 h-4 inline mr-2" />
                       Add Client
@@ -1143,7 +1140,7 @@ export default function CautioCRM() {
                         className="text-blue-500 hover:text-blue-400 mb-2 flex items-center gap-2 transition-colors text-sm"
                       >
                         <ChevronLeft className="w-4 h-4" />
-                        Back to Fleet
+                        Back to Clients
                       </button>
                       <h2 className="text-2xl font-bold">{selectedClient.name} - Vehicles</h2>
                     </div>
@@ -1233,7 +1230,7 @@ export default function CautioCRM() {
               {activeSection === 'employees' && (
                 <div className="animate-fade-in">
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Team Management</h2>
+                    <h2 className="text-2xl font-bold">Employee Management</h2>
                     <button
                       onClick={() => openModal('addEmployee')}
                       className="btn-primary"
@@ -1530,7 +1527,7 @@ export default function CautioCRM() {
                   <div className="grid grid-cols-3 gap-4">
                     {[
                       { value: tasks.filter(t => t.assigned_to === currentUser.id).length, label: 'My Tasks', color: 'from-blue-500 to-blue-600', onClick: () => setActiveSection('my-tasks') },
-                      { value: clients.length, label: 'Assigned Clients', color: 'from-indigo-500 to-indigo-600', onClick: () => setActiveSection('my-clients') },
+                      { value: clients.length, label: 'My Clients', color: 'from-indigo-500 to-indigo-600', onClick: () => setActiveSection('my-clients') },
                       { value: 0, label: 'Pending Leaves', color: 'from-purple-500 to-purple-600', onClick: () => setActiveSection('request-leave') }
                     ].map((stat, idx) => (
                       <div 
