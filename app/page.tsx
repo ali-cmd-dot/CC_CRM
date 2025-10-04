@@ -6,7 +6,8 @@ import {
   Users, Truck, UserCheck, CheckCircle, AlertTriangle, Activity, Plus, Upload, 
   ClipboardCheck, Calendar, BarChart3, Bell, Search, Download, LogOut, Clock,
   FileText, TrendingUp, X, Check, Edit, Trash2, Eye, Settings, Home, Zap, 
-  ChevronLeft, ChevronRight, Menu, Shield, ArrowRight, ChevronDown, RefreshCw
+  ChevronLeft, ChevronRight, Menu, Shield, ArrowRight, ChevronDown, RefreshCw,
+  EyeOff
 } from 'lucide-react'
 import { 
   supabase, 
@@ -512,7 +513,7 @@ export default function CautioCRM() {
     return (
       <div className="min-h-screen bg-[#0a0a0b]">
         <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
-          {/* Left Side - Image with Vertical Lines */}
+          {/* Left Side - Logo with Vertical Lines */}
           <div className="relative hidden lg:flex items-center justify-center">
             {/* Vertical Lines Background */}
             <div className="absolute inset-0 h-full px-14">
@@ -593,7 +594,11 @@ export default function CautioCRM() {
                       onClick={() => setPasswordVisible(!passwordVisible)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-white"
                     >
-                      <Eye className="h-6 w-6" />
+                      {passwordVisible ? (
+                        <EyeOff className="h-6 w-6" />
+                      ) : (
+                        <Eye className="h-6 w-6" />
+                      )}
                     </button>
                   </div>
                 </div>
