@@ -62,6 +62,10 @@ export default function CautioCRM() {
   const [distributionSummary, setDistributionSummary] = useState<any[]>([])
   const [redistributing, setRedistributing] = useState(false)
   
+  // Employee specific states
+  const [myAssignedClients, setMyAssignedClients] = useState<Client[]>([])
+  const [myAssignedTasks, setMyAssignedTasks] = useState<Task[]>([])
+  
   // Modal states
   const [showModal, setShowModal] = useState<string | null>(null)
   const [modalData, setModalData] = useState<any>({})
@@ -102,6 +106,9 @@ export default function CautioCRM() {
     
     if (currentUser?.role === 'admin') {
       loadDistributionData()
+    } else if (currentUser?.role === 'employee') {
+      // Load employee's assigned clients and tasks from distribution
+      loadEmployeeAssignments()
     }
   }
 
@@ -111,6 +118,34 @@ export default function CautioCRM() {
     
     setSchedules(schedulesData || [])
     setDistributionSummary(summaryData || [])
+  }
+
+  // NEW: Load employee's assigned clients and tasks
+  const loadEmployeeAssignments = async () => {
+    if (!currentUser) return
+    
+    const { data: schedulesData } = await getAllSchedules()
+    setSchedules(schedulesData || [])
+    
+    // Get assigned client IDs from schedules
+    const assignedClientIds = schedulesData
+      ?.filter(s => s.assigned_to === currentUser.id && s.client_id)
+      .map(s => s.client_id) || []
+    
+    // Get assigned task IDs from schedules
+    const assignedTaskIds = schedulesData
+      ?.filter(s => s.assigned_to === currentUser.id && s.task_id)
+      .map(s => s.task_id) || []
+    
+    // Filter clients
+    const { data: allClients } = await clientHelpers.getAll()
+    const filteredClients = allClients?.filter(c => assignedClientIds.includes(c.id)) || []
+    setMyAssignedClients(filteredClients)
+    
+    // Filter tasks
+    const { data: allTasks } = await taskHelpers.getAll()
+    const filteredTasks = allTasks?.filter(t => assignedTaskIds.includes(t.id)) || []
+    setMyAssignedTasks(filteredTasks)
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -192,7 +227,7 @@ export default function CautioCRM() {
     setModalData({})
   }
 
-  // UPDATED: CSV Upload with only vehicle numbers
+  // UPDATED: CSV Upload with vehicle count update
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, clientId: string) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -204,7 +239,7 @@ export default function CautioCRM() {
       const text = await file.text()
       const lines = text.split('\n').filter(line => line.trim())
       
-      // Skip header row (first line)
+      // Skip header row (first line) - change to just `lines` if no header
       const vehicleNumbers = lines.slice(1)
       
       // Create vehicle objects with only vehicle numbers
@@ -227,10 +262,27 @@ export default function CautioCRM() {
       
       if (error) throw error
       
+      // UPDATE: Update client's total_vehicles count
+      const { data: currentClient } = await supabase
+        .from('clients')
+        .select('total_vehicles')
+        .eq('id', clientId)
+        .single()
+      
+      if (currentClient) {
+        await supabase
+          .from('clients')
+          .update({ 
+            total_vehicles: (currentClient.total_vehicles || 0) + vehiclesToInsert.length 
+          })
+          .eq('id', clientId)
+      }
+      
       alert(`✓ ${vehiclesToInsert.length} vehicles added successfully!`)
       
       // Reload vehicles for this client
       loadVehicles(clientId)
+      loadInitialData() // Refresh client data to show updated count
     } catch (error) {
       console.error(error)
       alert('✗ Upload failed. Please check CSV format.')
@@ -326,6 +378,7 @@ export default function CautioCRM() {
     setLoading(false)
   }
 
+  // UPDATED: Add vehicle with count increment
   const handleAddVehicle = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedClient) return
@@ -349,9 +402,26 @@ export default function CautioCRM() {
     if (error) {
       alert('Failed to add vehicle')
     } else {
+      // UPDATE: Increment vehicle count
+      const { data: currentClient } = await supabase
+        .from('clients')
+        .select('total_vehicles')
+        .eq('id', selectedClient.id)
+        .single()
+      
+      if (currentClient) {
+        await supabase
+          .from('clients')
+          .update({ 
+            total_vehicles: (currentClient.total_vehicles || 0) + 1 
+          })
+          .eq('id', selectedClient.id)
+      }
+      
       alert('✓ Vehicle added successfully')
       closeModal()
       loadVehicles(selectedClient.id)
+      loadInitialData() // Refresh client data
     }
     
     setLoading(false)
@@ -1569,8 +1639,8 @@ export default function CautioCRM() {
 
                   <div className="grid grid-cols-3 gap-4">
                     {[
-                      { value: tasks.filter(t => t.assigned_to === currentUser.id).length, label: 'My Tasks', color: 'from-blue-500 to-blue-600', onClick: () => setActiveSection('my-tasks') },
-                      { value: clients.length, label: 'My Clients', color: 'from-indigo-500 to-indigo-600', onClick: () => setActiveSection('my-clients') },
+                      { value: myAssignedTasks.length, label: 'My Tasks', color: 'from-blue-500 to-blue-600', onClick: () => setActiveSection('my-tasks') },
+                      { value: myAssignedClients.length, label: 'My Clients', color: 'from-indigo-500 to-indigo-600', onClick: () => setActiveSection('my-clients') },
                       { value: 0, label: 'Pending Leaves', color: 'from-purple-500 to-purple-600', onClick: () => setActiveSection('request-leave') }
                     ].map((stat, idx) => (
                       <div 
@@ -1591,64 +1661,80 @@ export default function CautioCRM() {
 
               {activeSection === 'my-tasks' && (
                 <div className="animate-fade-in">
-                  <h2 className="text-2xl font-bold mb-6">My Tasks</h2>
-                  <div className="grid gap-4">
-                    {tasks.filter(t => t.assigned_to === currentUser.id).map((task) => (
-                      <div key={task.id} className="dark-card p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="text-lg font-bold">{task.title}</h3>
-                            <p className="text-gray-400 text-sm mt-1">{task.description}</p>
-                            <div className="flex gap-4 mt-3 text-sm">
-                              <span className={`badge ${
-                                task.priority === 'urgent' ? 'badge-danger' :
-                                task.priority === 'high' ? 'badge-warning' :
-                                'badge-info'
-                              }`}>
-                                {task.priority}
-                              </span>
-                              <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
+                  <h2 className="text-2xl font-bold mb-6">My Assigned Tasks</h2>
+                  {myAssignedTasks.length === 0 ? (
+                    <div className="dark-card p-12 text-center">
+                      <ClipboardCheck className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                      <h3 className="text-xl font-bold mb-2">No Tasks Assigned</h3>
+                      <p className="text-gray-400">You don't have any tasks assigned to you yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {myAssignedTasks.map((task) => (
+                        <div key={task.id} className="dark-card p-6">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="text-lg font-bold">{task.title}</h3>
+                              <p className="text-gray-400 text-sm mt-1">{task.description}</p>
+                              <div className="flex gap-4 mt-3 text-sm">
+                                <span className={`badge ${
+                                  task.priority === 'urgent' ? 'badge-danger' :
+                                  task.priority === 'high' ? 'badge-warning' :
+                                  'badge-info'
+                                }`}>
+                                  {task.priority}
+                                </span>
+                                <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-3xl font-bold text-blue-500">{task.completion_percentage}%</div>
+                              <div className="text-xs text-gray-400">Complete</div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-3xl font-bold text-blue-500">{task.completion_percentage}%</div>
-                            <div className="text-xs text-gray-400">Complete</div>
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {activeSection === 'my-clients' && (
                 <div className="animate-fade-in">
                   <h2 className="text-2xl font-bold mb-6">My Assigned Clients</h2>
-                  <div className="grid gap-4">
-                    {clients.map((client) => (
-                      <div
-                        key={client.id}
-                        onClick={() => { 
-                          setSelectedClient(client)
-                          loadVehicles(client.id)
-                          setActiveSection('client-vehicles')
-                        }}
-                        className="dark-card-clickable p-6"
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="text-xl font-bold">{client.name}</h3>
-                            <p className="text-gray-400 text-sm">{client.email}</p>
-                            <p className="text-xs text-gray-500 mt-2">{client.total_vehicles} vehicles</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-5xl font-bold text-blue-500">{client.completion_percentage}%</div>
-                            <p className="text-xs text-gray-400">Completion</p>
+                  {myAssignedClients.length === 0 ? (
+                    <div className="dark-card p-12 text-center">
+                      <Truck className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                      <h3 className="text-xl font-bold mb-2">No Clients Assigned</h3>
+                      <p className="text-gray-400">You don't have any clients assigned to you yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {myAssignedClients.map((client) => (
+                        <div
+                          key={client.id}
+                          onClick={() => { 
+                            setSelectedClient(client)
+                            loadVehicles(client.id)
+                            setActiveSection('client-vehicles')
+                          }}
+                          className="dark-card-clickable p-6"
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="text-xl font-bold">{client.name}</h3>
+                              <p className="text-gray-400 text-sm">{client.email}</p>
+                              <p className="text-xs text-gray-500 mt-2">{client.total_vehicles} vehicles</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-5xl font-bold text-blue-500">{client.completion_percentage}%</div>
+                              <p className="text-xs text-gray-400">Completion</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
