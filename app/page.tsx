@@ -498,7 +498,8 @@ export default function CautioCRM() {
     
     setLoading(true)
     
-    for (const vehicleId of selectedVehicles) {
+    const vehicleIds = Array.from(selectedVehicles)
+    for (const vehicleId of vehicleIds) {
       await supabase
         .from('vehicles')
         .update({ is_completed: true })
