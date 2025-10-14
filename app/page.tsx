@@ -7,8 +7,9 @@ import {
   ClipboardCheck, Calendar, BarChart3, Bell, Search, Download, LogOut, Clock,
   FileText, TrendingUp, X, Check, Edit, Trash2, Eye, Settings, Home, Zap, 
   ChevronLeft, ChevronRight, Menu, Shield, ArrowRight, ChevronDown, RefreshCw,
-  EyeOff
+  EyeOff, Square, CheckSquare
 } from 'lucide-react'
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { 
   supabase, 
   authHelpers, 
@@ -71,6 +72,9 @@ export default function CautioCRM() {
   const [modalData, setModalData] = useState<any>({})
   const [loading, setLoading] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
+  
+  // Selected vehicles for checkboxes
+  const [selectedVehicles, setSelectedVehicles] = useState<Set<string>>(new Set())
 
   // Session Management
   useEffect(() => {
@@ -88,8 +92,29 @@ export default function CautioCRM() {
   useEffect(() => {
     if (currentUser) {
       loadInitialData()
+      checkSignInStatus()
     }
   }, [currentUser])
+
+  const checkSignInStatus = async () => {
+    if (!currentUser) return
+    
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('employee_signin_status')
+      .select('*')
+      .eq('employee_id', currentUser.id)
+      .eq('date', today)
+      .single()
+    
+    if (data && data.is_signed_in) {
+      setIsSignedIn(true)
+      setSignInTime(data.sign_in_time ? new Date(data.sign_in_time).toLocaleTimeString() : null)
+    } else {
+      setIsSignedIn(false)
+      setSignInTime(null)
+    }
+  }
 
   const loadInitialData = async () => {
     const { data: clientsData } = await clientHelpers.getAll()
@@ -107,7 +132,6 @@ export default function CautioCRM() {
     if (currentUser?.role === 'admin') {
       loadDistributionData()
     } else if (currentUser?.role === 'employee') {
-      // Load employee's assigned clients and tasks from distribution
       loadEmployeeAssignments()
     }
   }
@@ -120,29 +144,24 @@ export default function CautioCRM() {
     setDistributionSummary(summaryData || [])
   }
 
-  // NEW: Load employee's assigned clients and tasks
   const loadEmployeeAssignments = async () => {
     if (!currentUser) return
     
     const { data: schedulesData } = await getAllSchedules()
     setSchedules(schedulesData || [])
     
-    // Get assigned client IDs from schedules
     const assignedClientIds = schedulesData
       ?.filter(s => s.assigned_to === currentUser.id && s.client_id)
       .map(s => s.client_id) || []
     
-    // Get assigned task IDs from schedules
     const assignedTaskIds = schedulesData
       ?.filter(s => s.assigned_to === currentUser.id && s.task_id)
       .map(s => s.task_id) || []
     
-    // Filter clients
     const { data: allClients } = await clientHelpers.getAll()
     const filteredClients = allClients?.filter(c => assignedClientIds.includes(c.id)) || []
     setMyAssignedClients(filteredClients)
     
-    // Filter tasks
     const { data: allTasks } = await taskHelpers.getAll()
     const filteredTasks = allTasks?.filter(t => assignedTaskIds.includes(t.id)) || []
     setMyAssignedTasks(filteredTasks)
@@ -192,9 +211,9 @@ export default function CautioCRM() {
     }
     
     setIsSignedIn(true)
-    setSignInTime(new Date().toLocaleTimeString())
-    
     const time = new Date().toLocaleTimeString()
+    setSignInTime(time)
+    
     alert(`✓ Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateMinutes} minutes\n✓ Your tasks & clients have been restored` : '\n✓ On Time'}`)
     loadInitialData()
     setLoading(false)
@@ -227,7 +246,6 @@ export default function CautioCRM() {
     setModalData({})
   }
 
-  // UPDATED: CSV Upload with vehicle count update
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, clientId: string) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -235,14 +253,11 @@ export default function CautioCRM() {
     setLoading(true)
     
     try {
-      // Read CSV file
       const text = await file.text()
       const lines = text.split('\n').filter(line => line.trim())
       
-      // Skip header row (first line) - change to just `lines` if no header
       const vehicleNumbers = lines.slice(1)
       
-      // Create vehicle objects with only vehicle numbers
       const vehiclesToInsert = vehicleNumbers.map(vehicleNum => ({
         vehicle_id: 'VEH' + Date.now() + Math.random().toString(36).substr(2, 9),
         client_id: clientId,
@@ -252,17 +267,16 @@ export default function CautioCRM() {
         driver_phone: '',
         status: 'online' as const,
         alerts_active: false,
-        video_recording: true
+        video_recording: true,
+        is_completed: false
       }))
       
-      // Insert all vehicles into database
       const { error } = await supabase
         .from('vehicles')
         .insert(vehiclesToInsert)
       
       if (error) throw error
       
-      // UPDATE: Update client's total_vehicles count
       const { data: currentClient } = await supabase
         .from('clients')
         .select('total_vehicles')
@@ -280,9 +294,8 @@ export default function CautioCRM() {
       
       alert(`✓ ${vehiclesToInsert.length} vehicles added successfully!`)
       
-      // Reload vehicles for this client
       loadVehicles(clientId)
-      loadInitialData() // Refresh client data to show updated count
+      loadInitialData()
     } catch (error) {
       console.error(error)
       alert('✗ Upload failed. Please check CSV format.')
@@ -362,7 +375,8 @@ export default function CautioCRM() {
       priority: modalData.priority,
       status: 'pending' as const,
       due_date: modalData.due_date,
-      completion_percentage: 0
+      completion_percentage: 0,
+      is_completed: false
     }
     
     const { error } = await taskHelpers.create(taskData)
@@ -378,7 +392,6 @@ export default function CautioCRM() {
     setLoading(false)
   }
 
-  // UPDATED: Add vehicle with count increment
   const handleAddVehicle = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedClient) return
@@ -394,7 +407,8 @@ export default function CautioCRM() {
       driver_phone: modalData.driver_phone,
       status: 'online' as const,
       alerts_active: false,
-      video_recording: true
+      video_recording: true,
+      is_completed: false
     }
     
     const { error } = await vehicleHelpers.create(vehicleData)
@@ -402,7 +416,6 @@ export default function CautioCRM() {
     if (error) {
       alert('Failed to add vehicle')
     } else {
-      // UPDATE: Increment vehicle count
       const { data: currentClient } = await supabase
         .from('clients')
         .select('total_vehicles')
@@ -421,7 +434,7 @@ export default function CautioCRM() {
       alert('✓ Vehicle added successfully')
       closeModal()
       loadVehicles(selectedClient.id)
-      loadInitialData() // Refresh client data
+      loadInitialData()
     }
     
     setLoading(false)
@@ -430,13 +443,92 @@ export default function CautioCRM() {
   const loadVehicles = async (clientId: string) => {
     const { data } = await vehicleHelpers.getByClient(clientId)
     setVehicles(data || [])
+    
+    // Clear selection when loading new vehicles
+    setSelectedVehicles(new Set())
   }
 
   const updateVehicleStatus = async (vehicleId: string, field: string, value: any) => {
     await vehicleHelpers.update(vehicleId, { [field]: value })
     if (selectedClient) {
       loadVehicles(selectedClient.id)
+      
+      // If marking as completed, update client percentage
+      if (field === 'is_completed') {
+        await updateClientCompletionPercentage(selectedClient.id)
+      }
     }
+  }
+
+  const updateClientCompletionPercentage = async (clientId: string) => {
+    const { data: clientVehicles } = await vehicleHelpers.getByClient(clientId)
+    
+    if (clientVehicles && clientVehicles.length > 0) {
+      const completedCount = clientVehicles.filter(v => v.is_completed).length
+      const percentage = Math.round((completedCount / clientVehicles.length) * 100)
+      
+      await supabase
+        .from('clients')
+        .update({ completion_percentage: percentage })
+        .eq('id', clientId)
+      
+      loadInitialData()
+    }
+  }
+
+  const toggleVehicleSelection = (vehicleId: string) => {
+    const newSelection = new Set(selectedVehicles)
+    if (newSelection.has(vehicleId)) {
+      newSelection.delete(vehicleId)
+    } else {
+      newSelection.add(vehicleId)
+    }
+    setSelectedVehicles(newSelection)
+  }
+
+  const toggleAllVehicles = () => {
+    if (selectedVehicles.size === vehicles.length) {
+      setSelectedVehicles(new Set())
+    } else {
+      setSelectedVehicles(new Set(vehicles.map(v => v.id)))
+    }
+  }
+
+  const markSelectedAsCompleted = async () => {
+    if (selectedVehicles.size === 0) {
+      alert('Please select vehicles first')
+      return
+    }
+    
+    setLoading(true)
+    
+    for (const vehicleId of selectedVehicles) {
+      await supabase
+        .from('vehicles')
+        .update({ is_completed: true })
+        .eq('id', vehicleId)
+    }
+    
+    if (selectedClient) {
+      await updateClientCompletionPercentage(selectedClient.id)
+      loadVehicles(selectedClient.id)
+    }
+    
+    alert(`✓ ${selectedVehicles.size} vehicles marked as completed`)
+    setSelectedVehicles(new Set())
+    setLoading(false)
+  }
+
+  const toggleTaskCompletion = async (taskId: string, currentStatus: boolean) => {
+    await supabase
+      .from('tasks')
+      .update({ 
+        is_completed: !currentStatus,
+        status: !currentStatus ? 'completed' : 'pending'
+      })
+      .eq('id', taskId)
+    
+    loadInitialData()
   }
 
   const handleApproveLeave = async (leaveId: string, approved: boolean) => {
@@ -591,6 +683,33 @@ export default function CautioCRM() {
     setRedistributing(false)
   }
 
+  // Chart data preparation
+  const getTaskStatusChartData = () => {
+    return [
+      { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: '#10b981' },
+      { name: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, color: '#3b82f6' },
+      { name: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: '#f59e0b' },
+      { name: 'Cancelled', value: tasks.filter(t => t.status === 'cancelled').length, color: '#ef4444' }
+    ]
+  }
+
+  const getWeeklyActivityData = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    return days.map(day => ({
+      name: day,
+      tasks: Math.floor(Math.random() * 20) + 5,
+      completed: Math.floor(Math.random() * 15) + 3
+    }))
+  }
+
+  const getClientVehicleData = () => {
+    return clients.slice(0, 5).map(client => ({
+      name: client.name.slice(0, 15),
+      vehicles: client.total_vehicles,
+      completion: client.completion_percentage
+    }))
+  }
+
   // Login Page
   if (!currentUser) {
     return (
@@ -631,20 +750,20 @@ export default function CautioCRM() {
               </div>
 
               <div className="my-8 flex flex-col items-center gap-2">
-                <span className="text-heading-6 text-dark-base-600">Sign in</span>
+                <span className="text-heading-6 text-white font-bold text-2xl">Sign in</span>
               </div>
 
               <form className="gap-4" onSubmit={handleLogin} noValidate>
                 <div className="mb-5">
                   <div className="flex flex-col items-start">
-                    <label htmlFor="email-field" className="mb-2 inline-block dark:text-body-l-semibold dark:text-dark-base-600">
+                    <label htmlFor="email-field" className="mb-2 inline-block text-gray-300 font-medium">
                       Email
                     </label>
                     <div className="relative flex w-full items-center">
                       <input
                         id="email-field"
                         style={{ paddingRight: '16px' }}
-                        className="w-full rounded-lg border p-3 outline-none outline-offset-0 dark:border-dark-stroke-contrast-400 dark:bg-dark-fill-base-300 dark:text-dark-base-600 dark:focus:border-brand-blue-600 dark:focus:outline-brand-blue-600"
+                        className="w-full rounded-lg border p-3 outline-none outline-offset-0 border-gray-600 bg-gray-800 text-white focus:border-blue-500 focus:outline-blue-500"
                         type="email"
                         placeholder="example@gmail.com"
                         name="email"
@@ -658,14 +777,14 @@ export default function CautioCRM() {
 
                 <div className="mb-3 mt-5">
                   <div className="flex flex-col items-start">
-                    <label htmlFor="password-field" className="mb-2 inline-block dark:text-body-l-semibold dark:text-dark-base-600">
+                    <label htmlFor="password-field" className="mb-2 inline-block text-gray-300 font-medium">
                       Password
                     </label>
                     <div className="relative flex w-full items-center">
                       <input
                         id="password-field"
                         style={{ paddingRight: '44px' }}
-                        className="w-full rounded-lg border p-3 outline-none outline-offset-0 dark:border-dark-stroke-contrast-400 dark:bg-dark-fill-base-300 dark:text-dark-base-600 dark:focus:border-brand-blue-600 dark:focus:outline-brand-blue-600"
+                        className="w-full rounded-lg border p-3 outline-none outline-offset-0 border-gray-600 bg-gray-800 text-white focus:border-blue-500 focus:outline-blue-500"
                         type={passwordVisible ? "text" : "password"}
                         placeholder="Password"
                         name="password"
@@ -674,24 +793,25 @@ export default function CautioCRM() {
                         required
                       />
                       <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center space-x-2">
-                        <span className="cursor-pointer" onClick={() => setPasswordVisible(!passwordVisible)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye h-6 w-6 text-dark-stroke-base-600">
-                            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                          </svg>
+                        <span className="cursor-pointer text-gray-400 hover:text-gray-300" onClick={() => setPasswordVisible(!passwordVisible)}>
+                          {passwordVisible ? (
+                            <EyeOff className="h-5 w-5" />
+                          ) : (
+                            <Eye className="h-5 w-5" />
+                          )}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <a className="flex cursor-pointer justify-start text-body-m-medium dark:text-brand-blue-600" href="#">
+                <a className="flex cursor-pointer justify-start text-blue-500 hover:text-blue-400 text-sm font-medium" href="#">
                   Forgot Password?
                 </a>
 
                 <div>
                   <button
-                    className="flex items-center justify-center gap-x-2 rounded-full px-5 py-3 text-body-s-semibold disabled:cursor-not-allowed disabled:opacity-50 dark:text-utility-white dark:bg-brand-blue-600 dark:shadow-[0px_0.5px_1px_0px_rgba(255,255,255,0.50)inset] dark:hover:bg-brand-blue-500 disabled:dark:hover:bg-brand-blue-600 mt-4 w-full"
+                    className="flex items-center justify-center gap-x-2 rounded-full px-5 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50 text-white bg-blue-600 hover:bg-blue-700 shadow-lg mt-4 w-full transition-all"
                     type="submit"
                     disabled={loading}
                   >
@@ -999,39 +1119,78 @@ export default function CautioCRM() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="dark-card p-6">
+                      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        <Activity className="w-6 h-6 text-blue-500" />
+                        Task Status Overview
+                      </h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={getTaskStatusChartData()}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, value }) => `${name}: ${value}`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {getTaskStatusChartData().map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="dark-card p-6">
+                      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        <TrendingUp className="w-6 h-6 text-green-500" />
+                        Weekly Activity Trend
+                      </h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <AreaChart data={getWeeklyActivityData()}>
+                          <defs>
+                            <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2c" />
+                          <XAxis dataKey="name" stroke="#8b8b8d" />
+                          <YAxis stroke="#8b8b8d" />
+                          <Tooltip contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #2a2a2c' }} />
+                          <Legend />
+                          <Area type="monotone" dataKey="tasks" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTasks)" />
+                          <Area type="monotone" dataKey="completed" stroke="#10b981" fillOpacity={1} fill="url(#colorCompleted)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
                   <div className="dark-card p-6">
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                      <Activity className="w-6 h-6 text-blue-500" />
-                      Recent Activity
+                      <Truck className="w-6 h-6 text-purple-500" />
+                      Top 5 Clients by Vehicles
                     </h3>
-                    <div className="space-y-2">
-                      {tasks.slice(0, 5).map((task) => (
-                        <div 
-                          key={task.id}
-                          onClick={() => setActiveSection('tasks')}
-                          className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer interactive-hover"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${
-                              task.priority === 'urgent' ? 'bg-red-500' :
-                              task.priority === 'high' ? 'bg-orange-500' :
-                              'bg-blue-500'
-                            } animate-pulse`}></div>
-                            <div>
-                              <div className="font-semibold text-sm">{task.title}</div>
-                              <div className="text-xs text-gray-400">{task.description?.slice(0, 50)}...</div>
-                            </div>
-                          </div>
-                          <span className={`badge ${
-                            task.priority === 'urgent' ? 'badge-danger' :
-                            task.priority === 'high' ? 'badge-warning' :
-                            'badge-info'
-                          }`}>
-                            {task.priority}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={getClientVehicleData()}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2c" />
+                        <XAxis dataKey="name" stroke="#8b8b8d" />
+                        <YAxis stroke="#8b8b8d" />
+                        <Tooltip contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #2a2a2c' }} />
+                        <Legend />
+                        <Bar dataKey="vehicles" fill="#8b5cf6" name="Total Vehicles" />
+                        <Bar dataKey="completion" fill="#10b981" name="Completion %" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               )}
@@ -1255,38 +1414,69 @@ export default function CautioCRM() {
                         <ChevronLeft className="w-4 h-4" />
                         Back to Clients
                       </button>
-                      <h2 className="text-2xl font-bold">{selectedClient.name} - Vehicles</h2>
+                      <h2 className="text-2xl font-bold">{selectedClient.name} - Vehicles ({vehicles.length})</h2>
+                      <p className="text-sm text-gray-400">Completion: {selectedClient.completion_percentage}%</p>
                     </div>
-                    <button
-                      onClick={() => openModal('addVehicle')}
-                      className="btn-primary"
-                    >
-                      <Plus className="w-4 h-4 inline mr-2" />
-                      Add Vehicle
-                    </button>
+                    <div className="flex gap-3">
+                      {selectedVehicles.size > 0 && (
+                        <button
+                          onClick={markSelectedAsCompleted}
+                          disabled={loading}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg flex items-center gap-2"
+                        >
+                          <Check className="w-4 h-4" />
+                          Mark {selectedVehicles.size} as Completed
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openModal('addVehicle')}
+                        className="btn-primary"
+                      >
+                        <Plus className="w-4 h-4 inline mr-2" />
+                        Add Vehicle
+                      </button>
+                    </div>
                   </div>
                   <div className="table-container">
                     <table className="w-full">
                       <thead>
                         <tr>
+                          <th className="table-header w-12">
+                            <button
+                              onClick={toggleAllVehicles}
+                              className="flex items-center justify-center w-full"
+                            >
+                              {selectedVehicles.size === vehicles.length ? (
+                                <CheckSquare className="w-5 h-5 text-blue-500" />
+                              ) : (
+                                <Square className="w-5 h-5 text-gray-500" />
+                              )}
+                            </button>
+                          </th>
                           <th className="table-header">Vehicle #</th>
-                          <th className="table-header">Driver</th>
                           <th className="table-header">Status</th>
                           <th className="table-header">Alerts (24h)</th>
                           <th className="table-header">Video</th>
                           <th className="table-header">Offline Reason</th>
+                          <th className="table-header">Completed</th>
                         </tr>
                       </thead>
                       <tbody>
                         {vehicles.map((vehicle) => (
                           <tr key={vehicle.id} className="table-row">
-                            <td className="px-6 py-4 font-medium text-sm">{vehicle.vehicle_number}</td>
                             <td className="px-6 py-4">
-                              <div>
-                                <div className="font-medium text-sm">{vehicle.driver_name}</div>
-                                <div className="text-xs text-gray-400">{vehicle.driver_phone}</div>
-                              </div>
+                              <button
+                                onClick={() => toggleVehicleSelection(vehicle.id)}
+                                className="flex items-center justify-center"
+                              >
+                                {selectedVehicles.has(vehicle.id) ? (
+                                  <CheckSquare className="w-5 h-5 text-blue-500" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-gray-500" />
+                                )}
+                              </button>
                             </td>
+                            <td className="px-6 py-4 font-medium text-sm">{vehicle.vehicle_number}</td>
                             <td className="px-6 py-4">
                               <select
                                 value={vehicle.status}
@@ -1331,6 +1521,14 @@ export default function CautioCRM() {
                                   <option value="dashcam_issue">📹 Dashcam Issue</option>
                                 </select>
                               )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <input
+                                type="checkbox"
+                                checked={vehicle.is_completed || false}
+                                onChange={(e) => updateVehicleStatus(vehicle.id, 'is_completed', e.target.checked)}
+                                className="w-5 h-5 cursor-pointer accent-green-500"
+                              />
                             </td>
                           </tr>
                         ))}
@@ -1408,18 +1606,32 @@ export default function CautioCRM() {
                     {tasks.map((task) => (
                       <div key={task.id} className="dark-card p-6">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="text-lg font-bold">{task.title}</h3>
-                            <p className="text-gray-400 text-sm mt-1">{task.description}</p>
-                            <div className="flex gap-4 mt-3 text-sm">
-                              <span className={`badge ${
-                                task.priority === 'urgent' ? 'badge-danger' :
-                                task.priority === 'high' ? 'badge-warning' :
-                                'badge-info'
-                              }`}>
-                                {task.priority}
-                              </span>
-                              <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
+                          <div className="flex items-start gap-3 flex-1">
+                            <button
+                              onClick={() => toggleTaskCompletion(task.id, task.is_completed || false)}
+                              className="mt-1"
+                            >
+                              {task.is_completed ? (
+                                <CheckSquare className="w-6 h-6 text-green-500" />
+                              ) : (
+                                <Square className="w-6 h-6 text-gray-500" />
+                              )}
+                            </button>
+                            <div>
+                              <h3 className={`text-lg font-bold ${task.is_completed ? 'line-through text-gray-500' : ''}`}>
+                                {task.title}
+                              </h3>
+                              <p className="text-gray-400 text-sm mt-1">{task.description}</p>
+                              <div className="flex gap-4 mt-3 text-sm">
+                                <span className={`badge ${
+                                  task.priority === 'urgent' ? 'badge-danger' :
+                                  task.priority === 'high' ? 'badge-warning' :
+                                  'badge-info'
+                                }`}>
+                                  {task.priority}
+                                </span>
+                                <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
+                              </div>
                             </div>
                           </div>
                           <div className="text-right">
@@ -1629,9 +1841,9 @@ export default function CautioCRM() {
                       </div>
                       <div className="text-right">
                         <p className="text-gray-400 text-sm">Status</p>
-                        <p className="text-2xl font-bold text-green-400 flex items-center gap-2">
-                          <span className="status-online"></span>
-                          Active
+                        <p className={`text-2xl font-bold flex items-center gap-2 ${isSignedIn ? 'text-green-400' : 'text-red-400'}`}>
+                          <span className={isSignedIn ? 'status-online' : 'status-offline'}></span>
+                          {isSignedIn ? 'Active' : 'Not Signed In'}
                         </p>
                       </div>
                     </div>
@@ -1673,18 +1885,32 @@ export default function CautioCRM() {
                       {myAssignedTasks.map((task) => (
                         <div key={task.id} className="dark-card p-6">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="text-lg font-bold">{task.title}</h3>
-                              <p className="text-gray-400 text-sm mt-1">{task.description}</p>
-                              <div className="flex gap-4 mt-3 text-sm">
-                                <span className={`badge ${
-                                  task.priority === 'urgent' ? 'badge-danger' :
-                                  task.priority === 'high' ? 'badge-warning' :
-                                  'badge-info'
-                                }`}>
-                                  {task.priority}
-                                </span>
-                                <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
+                            <div className="flex items-start gap-3 flex-1">
+                              <button
+                                onClick={() => toggleTaskCompletion(task.id, task.is_completed || false)}
+                                className="mt-1"
+                              >
+                                {task.is_completed ? (
+                                  <CheckSquare className="w-6 h-6 text-green-500" />
+                                ) : (
+                                  <Square className="w-6 h-6 text-gray-500" />
+                                )}
+                              </button>
+                              <div>
+                                <h3 className={`text-lg font-bold ${task.is_completed ? 'line-through text-gray-500' : ''}`}>
+                                  {task.title}
+                                </h3>
+                                <p className="text-gray-400 text-sm mt-1">{task.description}</p>
+                                <div className="flex gap-4 mt-3 text-sm">
+                                  <span className={`badge ${
+                                    task.priority === 'urgent' ? 'badge-danger' :
+                                    task.priority === 'high' ? 'badge-warning' :
+                                    'badge-info'
+                                  }`}>
+                                    {task.priority}
+                                  </span>
+                                  <span className="text-gray-400 text-xs">Due: {task.due_date}</span>
+                                </div>
                               </div>
                             </div>
                             <div className="text-right">
@@ -1750,23 +1976,17 @@ export default function CautioCRM() {
                       <thead>
                         <tr>
                           <th className="table-header">Vehicle #</th>
-                          <th className="table-header">Driver</th>
                           <th className="table-header">Status</th>
                           <th className="table-header">Alerts</th>
                           <th className="table-header">Video</th>
                           <th className="table-header">Reason</th>
+                          <th className="table-header">Completed</th>
                         </tr>
                       </thead>
                       <tbody>
                         {vehicles.map((vehicle) => (
                           <tr key={vehicle.id} className="table-row">
                             <td className="px-6 py-4 font-medium text-sm">{vehicle.vehicle_number}</td>
-                            <td className="px-6 py-4">
-                              <div>
-                                <div className="font-medium text-sm">{vehicle.driver_name}</div>
-                                <div className="text-xs text-gray-400">{vehicle.driver_phone}</div>
-                              </div>
-                            </td>
                             <td className="px-6 py-4">
                               <select
                                 value={vehicle.status}
@@ -1811,6 +2031,14 @@ export default function CautioCRM() {
                                   <option value="dashcam_issue">📹 Dashcam Issue</option>
                                 </select>
                               )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <input
+                                type="checkbox"
+                                checked={vehicle.is_completed || false}
+                                onChange={(e) => updateVehicleStatus(vehicle.id, 'is_completed', e.target.checked)}
+                                className="w-4 h-4 cursor-pointer accent-green-500"
+                              />
                             </td>
                           </tr>
                         ))}
