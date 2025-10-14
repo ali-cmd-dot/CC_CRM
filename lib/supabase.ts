@@ -52,6 +52,7 @@ export interface Vehicle {
   video_recording: boolean
   offline_reason?: 'vehicle_not_running' | 'dashcam_issue' | null
   last_online_at?: string
+  is_completed?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -68,6 +69,7 @@ export interface Task {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
   due_date?: string
   completion_percentage: number
+  is_completed?: boolean
   created_at?: string
   updated_at?: string
   completed_at?: string
