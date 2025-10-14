@@ -263,8 +263,6 @@ export default function CautioCRM() {
         client_id: clientId,
         vehicle_number: vehicleNum.trim(),
         vehicle_type: 'Not Specified',
-        driver_name: 'Not Assigned',
-        driver_phone: '',
         status: 'online' as const,
         alerts_active: false,
         video_recording: true,
@@ -403,8 +401,6 @@ export default function CautioCRM() {
       client_id: selectedClient.id,
       vehicle_number: modalData.vehicle_number,
       vehicle_type: modalData.vehicle_type,
-      driver_name: modalData.driver_name,
-      driver_phone: modalData.driver_phone,
       status: 'online' as const,
       alerts_active: false,
       video_recording: true,
@@ -683,7 +679,7 @@ export default function CautioCRM() {
     setRedistributing(false)
   }
 
-  // Chart data preparation
+  // Chart data preparation - REAL DATA BASED
   const getTaskStatusChartData = () => {
     return [
       { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: '#10b981' },
@@ -693,21 +689,45 @@ export default function CautioCRM() {
     ]
   }
 
-  const getWeeklyActivityData = () => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    return days.map(day => ({
-      name: day,
-      tasks: Math.floor(Math.random() * 20) + 5,
-      completed: Math.floor(Math.random() * 15) + 3
+  const getAttendanceChartData = () => {
+    // Last 7 days attendance data
+    const last7Days = []
+    const today = new Date()
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      const dateStr = date.toISOString().split('T')[0]
+      
+      // Count attendance for this date
+      const dayAttendance = attendance.filter(a => a.date === dateStr)
+      const presentCount = dayAttendance.filter(a => a.status === 'present' || a.status === 'late').length
+      const absentCount = employees.length - presentCount
+      
+      last7Days.push({
+        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        present: presentCount,
+        absent: absentCount
+      })
+    }
+    
+    return last7Days
+  }
+
+  const getClientCompletionData = () => {
+    return clients.slice(0, 5).map(client => ({
+      name: client.name.slice(0, 15),
+      completion: client.completion_percentage
     }))
   }
 
-  const getClientVehicleData = () => {
-    return clients.slice(0, 5).map(client => ({
-      name: client.name.slice(0, 15),
-      vehicles: client.total_vehicles,
-      completion: client.completion_percentage
-    }))
+  const getTaskPriorityData = () => {
+    return [
+      { name: 'Urgent', value: tasks.filter(t => t.priority === 'urgent').length, color: '#ef4444' },
+      { name: 'High', value: tasks.filter(t => t.priority === 'high').length, color: '#f59e0b' },
+      { name: 'Medium', value: tasks.filter(t => t.priority === 'medium').length, color: '#3b82f6' },
+      { name: 'Low', value: tasks.filter(t => t.priority === 'low').length, color: '#10b981' }
+    ]
   }
 
   // Login Page
@@ -1149,18 +1169,18 @@ export default function CautioCRM() {
                     <div className="dark-card p-6">
                       <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                         <TrendingUp className="w-6 h-6 text-green-500" />
-                        Weekly Activity Trend
+                        Weekly Attendance Trend
                       </h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <AreaChart data={getWeeklyActivityData()}>
+                        <AreaChart data={getAttendanceChartData()}>
                           <defs>
-                            <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
                               <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorAbsent" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2c" />
@@ -1168,29 +1188,55 @@ export default function CautioCRM() {
                           <YAxis stroke="#8b8b8d" />
                           <Tooltip contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #2a2a2c' }} />
                           <Legend />
-                          <Area type="monotone" dataKey="tasks" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTasks)" />
-                          <Area type="monotone" dataKey="completed" stroke="#10b981" fillOpacity={1} fill="url(#colorCompleted)" />
+                          <Area type="monotone" dataKey="present" stroke="#10b981" fillOpacity={1} fill="url(#colorPresent)" />
+                          <Area type="monotone" dataKey="absent" stroke="#ef4444" fillOpacity={1} fill="url(#colorAbsent)" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
-                  <div className="dark-card p-6">
-                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                      <Truck className="w-6 h-6 text-purple-500" />
-                      Top 5 Clients by Vehicles
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={getClientVehicleData()}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2c" />
-                        <XAxis dataKey="name" stroke="#8b8b8d" />
-                        <YAxis stroke="#8b8b8d" />
-                        <Tooltip contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #2a2a2c' }} />
-                        <Legend />
-                        <Bar dataKey="vehicles" fill="#8b5cf6" name="Total Vehicles" />
-                        <Bar dataKey="completion" fill="#10b981" name="Completion %" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="dark-card p-6">
+                      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        <Truck className="w-6 h-6 text-purple-500" />
+                        Top 5 Clients Completion
+                      </h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={getClientCompletionData()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2c" />
+                          <XAxis dataKey="name" stroke="#8b8b8d" />
+                          <YAxis stroke="#8b8b8d" />
+                          <Tooltip contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #2a2a2c' }} />
+                          <Bar dataKey="completion" fill="#10b981" name="Completion %" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="dark-card p-6">
+                      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        <AlertTriangle className="w-6 h-6 text-orange-500" />
+                        Tasks by Priority
+                      </h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={getTaskPriorityData()}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, value }) => `${name}: ${value}`}
+                            outerRadius={90}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {getTaskPriorityData().map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2325,18 +2371,6 @@ export default function CautioCRM() {
                     type="text"
                     placeholder="Vehicle Type (e.g., Truck, Van)"
                     onChange={(e) => setModalData({ ...modalData, vehicle_type: e.target.value })}
-                    className="input-field"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Driver Name"
-                    onChange={(e) => setModalData({ ...modalData, driver_name: e.target.value })}
-                    className="input-field"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Driver Phone"
-                    onChange={(e) => setModalData({ ...modalData, driver_phone: e.target.value })}
                     className="input-field"
                   />
                   <div className="flex gap-2">
