@@ -73,7 +73,7 @@ export default function CautioCRM() {
   const [loading, setLoading] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
   
-  // Selected vehicles for checkboxes
+  // Selected vehicles for checkboxes - INITIALLY EMPTY
   const [selectedVehicles, setSelectedVehicles] = useState<Set<string>>(new Set())
 
   // Session Management
@@ -150,12 +150,24 @@ export default function CautioCRM() {
     const { data: schedulesData } = await getAllSchedules()
     setSchedules(schedulesData || [])
     
+    const currentHour = new Date().getHours()
+    
     const assignedClientIds = schedulesData
-      ?.filter(s => s.assigned_to === currentUser.id && s.client_id)
+      ?.filter(s => 
+        s.assigned_to === currentUser.id && 
+        s.client_id &&
+        s.hour_start <= currentHour &&
+        s.hour_end >= currentHour
+      )
       .map(s => s.client_id) || []
     
     const assignedTaskIds = schedulesData
-      ?.filter(s => s.assigned_to === currentUser.id && s.task_id)
+      ?.filter(s => 
+        s.assigned_to === currentUser.id && 
+        s.task_id &&
+        s.hour_start <= currentHour &&
+        s.hour_end >= currentHour
+      )
       .map(s => s.task_id) || []
     
     const { data: allClients } = await clientHelpers.getAll()
@@ -214,7 +226,11 @@ export default function CautioCRM() {
     const time = new Date().toLocaleTimeString()
     setSignInTime(time)
     
-    alert(`✓ Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateMinutes} minutes\n✓ Your tasks & clients have been restored` : '\n✓ On Time'}`)
+    const hours = Math.floor(lateMinutes / 60)
+    const mins = lateMinutes % 60
+    const lateDisplay = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+    
+    alert(`✓ Signed in at ${time}${lateMinutes > 0 ? `\n⚠️ Late by ${lateDisplay}\n✓ Your tasks & clients have been restored` : '\n✓ On Time'}`)
     loadInitialData()
     setLoading(false)
   }
@@ -440,7 +456,7 @@ export default function CautioCRM() {
     const { data } = await vehicleHelpers.getByClient(clientId)
     setVehicles(data || [])
     
-    // Clear selection when loading new vehicles
+    // CLEAR SELECTION when loading new vehicles
     setSelectedVehicles(new Set())
   }
 
@@ -516,16 +532,29 @@ export default function CautioCRM() {
     setLoading(false)
   }
 
+  // FIX: Toggle task completion with proper database update
   const toggleTaskCompletion = async (taskId: string, currentStatus: boolean) => {
-    await supabase
+    const newCompletionStatus = !currentStatus
+    const newTaskStatus = newCompletionStatus ? 'completed' : 'pending'
+    const completionPercentage = newCompletionStatus ? 100 : 0
+    
+    const { error } = await supabase
       .from('tasks')
       .update({ 
-        is_completed: !currentStatus,
-        status: !currentStatus ? 'completed' : 'pending'
+        is_completed: newCompletionStatus,
+        status: newTaskStatus,
+        completion_percentage: completionPercentage,
+        completed_at: newCompletionStatus ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
       })
       .eq('id', taskId)
     
-    loadInitialData()
+    if (error) {
+      console.error('Error updating task:', error)
+      alert('Failed to update task')
+    } else {
+      loadInitialData()
+    }
   }
 
   const handleApproveLeave = async (leaveId: string, approved: boolean) => {
@@ -678,6 +707,17 @@ export default function CautioCRM() {
     }
     
     setRedistributing(false)
+  }
+
+  // Helper function to format late time in hours and minutes
+  const formatLateTime = (lateMinutes: number) => {
+    if (lateMinutes <= 0) return '0m'
+    const hours = Math.floor(lateMinutes / 60)
+    const mins = lateMinutes % 60
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+    }
+    return `${mins}m`
   }
 
   // Chart data preparation - REAL DATA BASED
@@ -1105,7 +1145,7 @@ export default function CautioCRM() {
                                   <div className="text-xs text-gray-400">Scheduled: {att.scheduled_time}</div>
                                 </div>
                                 <div className="text-right">
-                                  <div className="font-bold text-red-400">{att.late_by_minutes} min late</div>
+                                  <div className="font-bold text-red-400">{formatLateTime(att.late_by_minutes)} late</div>
                                   <div className="text-xs text-gray-400">{new Date(att.sign_in_time!).toLocaleTimeString()}</div>
                                 </div>
                               </div>
@@ -1493,7 +1533,7 @@ export default function CautioCRM() {
                               onClick={toggleAllVehicles}
                               className="flex items-center justify-center w-full"
                             >
-                              {selectedVehicles.size === vehicles.length ? (
+                              {selectedVehicles.size === vehicles.length && vehicles.length > 0 ? (
                                 <CheckSquare className="w-5 h-5 text-blue-500" />
                               ) : (
                                 <Square className="w-5 h-5 text-gray-500" />
@@ -1725,7 +1765,7 @@ export default function CautioCRM() {
                               </td>
                               <td className="px-6 py-4">
                                 {att.late_by_minutes > 0 && (
-                                  <span className="text-red-400 font-semibold text-sm">{att.late_by_minutes} min</span>
+                                  <span className="text-red-400 font-semibold text-sm">{formatLateTime(att.late_by_minutes)}</span>
                                 )}
                               </td>
                             </tr>
